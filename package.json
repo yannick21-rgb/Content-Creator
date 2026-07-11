@@ -1,0 +1,36 @@
+{
+  "name": "content-creator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "test": "vitest run",
+    "test:unit": "vitest run src/lib",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^15.5.19",
+    "react": "^19",
+    "react-dom": "^19",
+    "better-auth": "1.6.23",
+    "@better-auth/drizzle-adapter": "1.6.23",
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "typescript": "^5.7",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31",
+    "tailwindcss": "^4",
+    "@tailwindcss/postcss": "^4",
+    "vitest": "^2"
+  }
+}

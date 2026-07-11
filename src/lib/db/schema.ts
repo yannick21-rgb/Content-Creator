@@ -1,0 +1,168 @@
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  uuid,
+  integer,
+  check,
+  sql,
+} from "drizzle-orm/pg-core";
+import { createId } from "@paralleldrive/cuid2";
+import { relations } from "drizzle-orm";
+
+// ---------------------------------------------------------------------------
+// Better Auth tables (Drizzle adapter, provider: "pg")
+// Field names follow the official @better-auth/drizzle-adapter conventions.
+// ---------------------------------------------------------------------------
+
+export const user = pgTable("user", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const session = pgTable("session", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  expiresAt: timestamp("expires_at").notNull(),
+  token: text("token").notNull().unique(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const account = pgTable("account", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at"),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const verification = pgTable("verification", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
+// Application tables (client isolation + encrypted token vault)
+// ---------------------------------------------------------------------------
+
+export const client = pgTable("client", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const socialAccount = pgTable(
+  "social_account",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "cascade" }),
+    platform: text("platform").notNull(),
+    platformAccountId: text("platform_account_id").notNull(),
+    name: text("name"),
+    // AES-256-GCM ciphertext + auth tag + IV. Plaintext is never stored.
+    accessTokenEnc: text("access_token_enc").notNull(),
+    refreshTokenEnc: text("refresh_token_enc"),
+    iv: text("iv").notNull(),
+    tag: text("tag").notNull(),
+    expiresAt: timestamp("expires_at"),
+    keyVersion: integer("key_version").notNull().default(1),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      "social_account_platform_check",
+      sql`${table.platform} IN ('meta', 'linkedin')`,
+    ),
+  ],
+);
+
+export const oauthState = pgTable("oauth_state", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  provider: text("provider").notNull(),
+  state: text("state").notNull().unique(),
+  codeVerifier: text("code_verifier").notNull(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => client.id, { onDelete: "cascade" }),
+  redirectUri: text("redirect_uri").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
+// Relations
+// ---------------------------------------------------------------------------
+
+export const userRelations = relations(user, ({ many }) => ({
+  clients: many(client),
+  sessions: many(session),
+  accounts: many(account),
+}));
+
+export const clientRelations = relations(client, ({ one, many }) => ({
+  user: one(user, {
+    fields: [client.userId],
+    references: [user.id],
+  }),
+  socialAccounts: many(socialAccount),
+  oauthStates: many(oauthState),
+}));
+
+export const socialAccountRelations = relations(socialAccount, ({ one }) => ({
+  client: one(client, {
+    fields: [socialAccount.clientId],
+    references: [client.id],
+  }),
+}));
+
+export const oauthStateRelations = relations(oauthState, ({ one }) => ({
+  client: one(client, {
+    fields: [oauthState.clientId],
+    references: [client.id],
+  }),
+}));
+
+// ---------------------------------------------------------------------------
+// Type exports
+// ---------------------------------------------------------------------------
+
+export type User = typeof user.$inferSelect;
+export type NewUser = typeof user.$inferInsert;
+export type Client = typeof client.$inferSelect;
+export type NewClient = typeof client.$inferInsert;
+export type SocialAccount = typeof socialAccount.$inferSelect;
+export type NewSocialAccount = typeof socialAccount.$inferInsert;
+export type OauthState = typeof oauthState.$inferSelect;
+export type NewOauthState = typeof oauthState.$inferInsert;
