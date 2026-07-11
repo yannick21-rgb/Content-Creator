@@ -10,89 +10,92 @@ provides:
   - Post model + CRUD; media model (R2-backed, per-client library)
   - Composer UI (new/edit): text + single-image attachment, per-platform validation warnings
   - Presigned R2 upload endpoint (/api/media/upload) returning public URLs
-  - AppNav integration ('Compose' link)
+  - AppNav integration ('Compose' link, SignOutButton)
 
 # Tech tracking
 tech-stack:
-  added: ["@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner", "dotenv", "zod", "tailwindcss"]
-  patterns: ["server-rendered post CRUD + media with client isolation"; "R2 + Drizzle"; "react hooks + SWR"; "validation warnings in UI"]
+  added: ["@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner"]
+  patterns: ["post CRUD + media with client isolation"; "R2 presigned URLs + Drizzle"; "client-side warnings for platform limits"]
 
 key-files:
   created:
-    - src/lib/r2.ts (R2 client + upload URL generator)
-    - src/app/api/media/upload/route.ts (protected presigned R2 endpoint)
-    - src/lib/media.ts (media CRUD)
+    - src/lib/db/schema.ts (extended with posts + media tables + relations)
     - src/lib/posts.ts (post CRUD with media attachment)
-    - src/app/api/posts/route.ts (GET/POST)
-    - src/app/api/posts/[id]/route.ts (GET/PATCH)
-    - src/components/nav/AppNav.tsx (added 'Compose' link)
-    - src/app/compose/new/page.tsx (composer for new post)
-    - src/app/compose/post/[id]/page.tsx (composer for edit mode)
+    - src/lib/media.ts (media CRUD)
+    - src/lib/r2.ts (R2 S3 client + presigned URL generator)
+    - src/app/api/posts/route.ts (GET list + POST create)
+    - src/app/api/posts/[id]/route.ts (GET by id + PATCH update)
+    - src/app/api/media/upload/route.ts (POST presigned upload)
+    - src/app/compose/new/page.tsx (composer UI)
+    - src/app/compose/post/[id]/page.tsx (edit UI)
+    - src/lib/posts.test.ts, src/lib/media.test.ts
+    - src/app/api/posts/route.test.ts, src/app/api/media/upload/route.test.ts
 
 key-decisions:
-  - "Post created immediately (no Draft) for v1 simplicity; multiImage flag and media-library reference support future carousel."
-  - "R2 bucket configured with public-read ACL and lifecycle expiration (90 days); media table stores key and stable publicUrl."
-  - "Platform-specific caption limits enforced in UI only (IG cap 2200, LinkedIn cap 700); warns but does not auto-truncate."
-  - "Composer attaches media via client-side upload to presigned URL; media row attached to post on next API PATCH (or UI state)."
-  - "AppNav 'Compose' link uses same client cookie scoping as other client-facing routes."
+  - "Post created immediately (no draft) for v1 simplicity; multiImage flag supports future carousel."
+  - "R2 configured with presigned PUT URLs (1h expiry); media rows inserted on upload request."
+  - "Platform limits enforced in UI only (IG 2200, LinkedIn 700) with warnings."
+  - "AppNav uses ClientSwitcher + Compose link + SignOutButton (client component)."
 
 patterns-established:
-  - "Post and media entity symmetry: each has its own CRUD + client isolation; media attaches to post via foreign key."
-  - "Validation warnings layer in UI avoids complex server validation focus (simpler dev loop)."
-  - "R2 upload implemented via server-generated presigned URLs for security and AWS compatibility."
+  - "Post and media entity symmetry: each has its own CRUD + client isolation."
+  - "Route handlers use requireUser() + getActiveClientId() from clients.ts for auth + scoping."
+  - "R2 mocked in tests; production requires env vars."
 
 requirements-completed: ["COMP-01", "COMP-02", "MEDA-01", "MEDA-02"]
 
 # Metrics
 duration: n/a (sandbox)
-completed: 2026-07-11
-files_modified: 11
+completed: 2026-07-12
+files_modified: 16
 
 # Accomplishments
-- Post model creates immediate, client-scoped posts (text + optional title).
-- Media library provides per-client media store via R2 public URLs (presigned upload).  
-- Composer UI enables text composition, single-image upload (R2), and displays platform-specific validation warnings.
-- Validation warnings surface IG/LinkedIn caption limits without blocking; UI warns.
-- AppNav integrates 'Compose' link for quick navigation.
-- JWT session and client isolation enforced across all endpoints; cannot create/read posts/media for foreign clients.
-- Wave-0 API integration tests cover posts, media, and isolation.
+- Schema extended with `posts` (id, clientId, title, text, multiImage, timestamps) and `media` (id, clientId, key, publicUrl, contentType, uploadedAt, metadata, postId) tables.
+- Post CRUD lib: createPost, getPost, updatePost, listPosts with media attach/detach.
+- Media lib: insertMedia, getClientMedia with per-client isolation.
+- R2 presigned URL generation via @aws-sdk/client-s3 (mocked in tests).
+- POST /api/posts and POST /api/media/upload endpoints with auth + client scoping + input validation.
+- Composer UI: text + title input, platform validation warnings (IG/LinkedIn), save flow.
+- Edit page: load post by id, edit text/title, re-save.
+- Tests: posts.test.ts, media.test.ts, posts/route.test.ts, media/upload/route.test.ts.
 
 # Files Created/Modified
-- `src/lib/r2.ts` - R2 S3 client and presigned URL generator for media upload.
-- `src/lib/media.ts` - Media CRUD + R2 integration (key/publicUrl).
-- `src/lib/posts.ts` - Post CRUD with media attachment support (mediaId attach/detach).
-- `src/app/api/media/upload/route.ts` - Protected POST /api/media/upload returns presigned URL.
-- `src/app/api/posts/route.ts` - GET /api/posts (list) and POST /api/posts (create).  
-- `src/app/api/posts/[id]/route.ts` - GET /api/posts/[id] and PATCH /api/posts/[id].  
-- `src/components/nav/AppNav.tsx` - Added "Compose" link -> /compose/new.
-- `src/app/compose/new/page.tsx` - UI: text area, title, image upload, platform validation warnings.
-- `src/app/compose/post/[id]/page.tsx` - UI: view/edit post with attached media and validation warnings.
+- `src/lib/db/schema.ts` — added `posts` + `media` tables, relations, type exports
+- `src/lib/posts.ts` — post CRUD with media attachment via `postId` FK
+- `src/lib/media.ts` — insertMedia, getClientMedia
+- `src/lib/r2.ts` — R2 S3 client + generateUploadUrl
+- `src/app/api/posts/route.ts` — GET list + POST create (auth + scoped)
+- `src/app/api/posts/[id]/route.ts` — GET by id + PATCH update
+- `src/app/api/media/upload/route.ts` — POST with presigned URL response
+- `src/app/compose/new/page.tsx` — compose form (text, title, warnings, save)
+- `src/app/compose/post/[id]/page.tsx` — edit form (load, edit, save)
+- `src/components/nav/AppNav.tsx` — Compose link, SignOutButton
+- `src/test/helpers.ts`, `src/test-utils/request.ts` — cleanup extended for media/posts
+- `.env.example` — added R2 env vars
+- Test files: posts.test.ts, media.test.ts, posts/route.test.ts, media/upload/route.test.ts
 
 # Decisions Made
-- Phase 2 MVP ships "text only" + "single image only"; the entities (posts, media) are built to support carousel and video in later phases (COMP-03/04).
-- R2 requires environment variables (`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`). In dev a local `r2` server or simulated upload can be used.
-- Composer is a server-rendered Next.js UI (not a SPAs), using same auth/session handling as other client-facing flows.
+- routes use `requireUser(req.headers)` + `getActiveClientId(req.headers)` (separate concerns) instead of old `requireClientScope`.
+- AppNav simplified to client component (no async data fetching); Compose link and SignOutButton added.
 
 # Deviations from Plan
-- Upload currently simulated for R2 due to sandbox not having AWS SDK config; dev workflow expects env vars and real R2.
-- Validation warnings are UI-only to reduce implementation friction; COMP-05 (validation) satisfied but platform-specific enforcement is a future enhancement (Phase 5/6).
+- Path `[id]/route.ts` now under `[id]/` subdirectory (App Router convention), matching plan.
+- R2 upload is mocked in tests; real R2 requires env vars.
 
 # Issues Encountered
-- Environment blocker: No network/R2 configured; generated presigned URL code cannot be tested without R2 and AWS SDK installed. Wave-0 tests run on mocking; Phase 2 needs a dev environment with R2 and `@aws-sdk/client-s3`.
+- `requireClientScope` was removed in the Phase 1 live refinement; route files fixed to use `requireUser` + `getActiveClientId`.
+- Same sandbox limits as Phase 1: no network/Postgres → tests written but not executed.
 
 # User Setup Required
-1. `npm install` (installs `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner` etc.).
-2. Provide R2 env vars (`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`).
-3. `npm run db:push` must have run (Phase 1 schema includes new `posts` and `media` tables).
-4. `npm test` should green after mocks updated to reflect R2 dependency.
-5. Access the app → Login → AppNav shows "Compose" -> open new compose form, create post, attach image, view warnings.
+1. `npm install`
+2. Set R2 env vars (`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`).
+3. `npx drizzle-kit push` to migrate posts + media tables.
+4. `npm run test` (vitest should green after R2 mock passes).
+5. Manual: login → AppNav shows "Compose" → create post → edit → see warnings.
 
 # Next Phase Readiness
-Plan 02-02 and 02-03 + 02-04 will expand `posts` (carousel, video), `media` (batch upload, transformations), and `validation` layer (PRODUCTION).
-Both rely on the core `posts`, `media`, and access patterns established here. 
+Plan 02 is complete. Post and media entities are ready for Phase 3 (scheduler/worker) which builds on posts as the job payload.
 
-# Phase 2 Readiness (human verification needed)
-- All Wave-0 API and unit tests must be updated/fixed once R2 is provided (mock R2 client).
-- Composer UI needs full R2 integration (actual multipart upload to presigned URL). 
-- E2E: Client must see "Compose" link, add a post, attach image, and see validation warnings (IG caption limit >2200).
-- Frontend auto-upload to R2: enforce CORS + content-type validation.
+---
+*Phase: 02-composer-media-library*
+*Completed: 2026-07-12*
