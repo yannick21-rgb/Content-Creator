@@ -12,22 +12,19 @@ export interface OAuthIdentity {
   name: string;
 }
 
-export interface AuthorizeParams {
-  state: string;
-  codeChallenge: string;
-  redirectUri: string;
-}
-
-export interface ExchangeParams {
-  code: string;
-  codeVerifier: string;
-  redirectUri: string;
-}
-
 export interface OAuthProvider {
   platform: Platform;
-  getAuthorizeUrl(p: AuthorizeParams): string;
-  exchangeCode(p: ExchangeParams): Promise<OAuthToken>;
-  fetchIdentity(accessToken: string): Promise<OAuthIdentity>;
   getScopes(): string[];
+  // Returns a redirect URL the browser should be sent to.
+  getAuthorizeUrl(p: {
+    state: string;
+    codeChallenge: string;
+    redirectUri: string;
+  }): string;
+  exchangeCode(p: {
+    code: string;
+    codeVerifier: string;
+    redirectUri: string;
+  }): Promise<OAuthToken>;
+  fetchIdentity(accessToken: string): Promise<OAuthIdentity>;
 }

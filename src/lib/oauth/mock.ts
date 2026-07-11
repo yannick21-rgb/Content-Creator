@@ -1,50 +1,42 @@
 import { randomBytes } from "crypto";
-import type {
-  AuthorizeParams,
-  ExchangeParams,
-  OAuthIdentity,
-  OAuthProvider,
-  OAuthToken,
-  Platform,
-} from "./provider";
+import type { OAuthProvider, OAuthToken, OAuthIdentity, Platform } from "./provider";
 
-/**
- * Dev mock provider — implements the exact same interface/state machine as the
- * real Meta/LinkedIn providers so the full connect→encrypt→persist→"connected"
- * path is provable with zero approved-app credentials (PITFALL 6).
- */
-export class MockProvider implements OAuthProvider {
-  platform: Platform;
+// Deterministic mock provider — same interface/state machine as the real
+// Meta/LinkedIn providers so the connect flow is provable with zero approved
+// app credentials (PITFALL 6). The mock "authorize" handler lives at
+// /api/clients/[id]/connections/<platform>/mock-authorize and simply redirects
+// back to the callback with a fixed code + the original state.
+export class MockOAuthProvider implements OAuthProvider {
+  constructor(public platform: Platform) {}
 
-  constructor(platform: Platform) {
-    this.platform = platform;
+  getScopes(): string[] {
+    return ["mock"];
   }
 
-  getAuthorizeUrl(p: AuthorizeParams): string {
-    // In mock mode the start route redirects to the mock-authorize handler
-    // instead; this URL is only used if the interface is invoked directly.
-    return `${p.redirectUri}?code=MOCK_${this.platform}_CODE&state=${p.state}`;
+  getAuthorizeUrl(p: { state: string }): string {
+    // The start route redirects here; this is where the (mock) provider would
+    // ask for consent. It immediately bounces back to the callback.
+    return `/api/clients/__PLACEHOLDER__/connections/${this.platform}/mock-authorize?state=${p.state}`;
   }
 
-  async exchangeCode(_p: ExchangeParams): Promise<OAuthToken> {
+  async exchangeCode(p: { code: string }): Promise<OAuthToken> {
+    if (!p.code.startsWith("MOCK_")) {
+      throw new Error("Mock provider expects a MOCK_ code");
+    }
     const rand = randomBytes(6).toString("hex");
     return {
       accessToken: `mock-access-${this.platform}-${rand}`,
       refreshToken: `mock-refresh-${this.platform}-${rand}`,
-      expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // +60d
       longLived: true,
     };
   }
 
-  async fetchIdentity(_accessToken: string): Promise<OAuthIdentity> {
+  async fetchIdentity(accessToken: string): Promise<OAuthIdentity> {
     const rand = randomBytes(6).toString("hex");
     return {
       platformAccountId: `mock-${this.platform}-id-${rand}`,
       name: `Mock ${this.platform === "meta" ? "Meta" : "LinkedIn"} Account`,
     };
-  }
-
-  getScopes(): string[] {
-    return [];
   }
 }

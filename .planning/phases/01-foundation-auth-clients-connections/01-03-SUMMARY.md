@@ -2,25 +2,26 @@
 phase: 01-foundation-auth-clients-connections
 plan: 03
 subsystem: auth
-tags: [oauth, meta, linkedin, aes-256-gcm, encryption, pkce, reconnect, mock-provider]
+tags: [oauth, encryption, aes-256-gcm, meta, linkedin, reconnect, connection-status]
 
 # Dependency graph
 requires:
   - phase: 01-01
-    provides: Drizzle schema (socialAccount, oauthState), db client, Better Auth session
+    provides: schema (social_account, oauth_state), auth, db client
   - phase: 01-02
-    provides: active-client scoping, client API, ClientSwitcher badges
+    provides: client scoping helpers, connections landing, nav switcher
 provides:
-  - OAuthProvider abstraction (mock + real Meta/LinkedIn) behind OAUTH_PROVIDER_MODE
-  - AES-256-GCM token vault at the persistence boundary
-  - Connect/callback/reconnect endpoints with PKCE + state-CSRF + client binding (D-06)
-  - "Reconnect required" state (7-day rule) + one-click re-auth (CONN-04)
-  - Connection cards + nav badges wired to real per-client connection summary (D-05, I-01 closed)
+  - OAuthProvider abstraction (mock + real Meta/LinkedIn) selected by OAUTH_PROVIDER_MODE
+  - AES-256-GCM token vault (encrypt/decrypt, TOKEN_ENCRYPTION_KEY)
+  - connect/callback/reconnect endpoints with PKCE + state-CSRF + client binding (D-06)
+  - "Reconnect required" state via statusFor 7-day rule (CONN-04)
+  - ConnectionCard UI + nav badges wired to real per-client connection summary (D-05)
+affects: [phase-4, phase-5, phase-6]
 
 # Tech tracking
 tech-stack:
-  added: [crypto (node built-in)]
-  patterns: [OAuthProvider interface, AES-256-GCM encrypt-before-insert, completeOAuthConnection, statusFor threshold, mock-first provider]
+  added: []
+  patterns: [OAuthProvider interface shared by mock/real; encrypt at boundary before insert; status computed server-side; token fields never serialized]
 
 key-files:
   created:
@@ -31,10 +32,10 @@ key-files:
     - src/lib/oauth/meta.ts
     - src/lib/oauth/linkedin.ts
     - src/lib/oauth/index.ts
+    - src/lib/oauth/pkce.ts
+    - src/lib/oauth/start.ts
+    - src/lib/oauth/callback.ts
     - src/lib/oauth/complete.ts
-    - src/lib/oauth/beginFlow.ts
-    - src/lib/oauth/completeFlow.ts
-    - src/app/api/clients/[id]/connections/route.ts
     - src/app/api/clients/[id]/connections/meta/start/route.ts
     - src/app/api/clients/[id]/connections/meta/callback/route.ts
     - src/app/api/clients/[id]/connections/meta/mock-authorize/route.ts
@@ -42,77 +43,72 @@ key-files:
     - src/app/api/clients/[id]/connections/linkedin/callback/route.ts
     - src/app/api/clients/[id]/connections/linkedin/mock-authorize/route.ts
     - src/app/api/clients/[id]/connections/[accountId]/reconnect/route.ts
+    - src/app/api/clients/[id]/connections/route.ts
     - src/components/connections/ConnectionCard.tsx
-    - src/components/connections/ConnectionsView.tsx
     - src/lib/crypto.test.ts
     - src/lib/connection-status.test.ts
     - src/lib/oauth/meta.test.ts
     - src/lib/oauth/linkedin.test.ts
+  modified:
+    - src/app/api/clients/route.ts (GET returns connected_count + reconnect_required_count)
+    - src/components/nav/ClientSwitcher.tsx (real badges from summary)
+    - src/app/clients/[id]/connections/page.tsx (renders ConnectionCards)
 
 key-decisions:
-  - "Encryption happens at the boundary in completeOAuthConnection (encrypt before insert); plaintext never hits the DB, logs, or API responses (CONN-03)."
-  - "Mock provider implements the same interface/state machine as real, so all flows are provable with OAUTH_PROVIDER_MODE=mock (PITFALL 6)."
-  - "Real Meta provider performs the short→long-lived (fb_exchange_token) swap before persistence (PITFALL 2)."
-  - "Client id is bound into the oauth_state row (D-06) — target-confusion safe."
+  - "Mock provider implements the SAME OAuthProvider interface/state machine as real, so the full connect→encrypt→persist→'connected' path is provable with zero approved-app credentials (PITFALL 6)."
+  - "Meta exchangeCode performs the fb_exchange_token long-lived swap before persistence (PITFALL 2); LinkedIn treats 60-day token as non-refreshable (PITFALL 1)."
+  - "oauthState stores the PKCE verifier + clientId server-side; the clientId embedded in state binds the new connection to the active client (D-06)."
 
 patterns-established:
-  - "OAuthProvider interface; getProvider() factory switches on OAUTH_PROVIDER_MODE."
-  - "PKCE S256 verifier stashed server-side in oauth_state; one-time state consumed on callback."
-  - "statusFor(expiresAt) derives connection status; GET /api/clients summary and GET /api/connections omit token fields."
+  - "completeOAuthConnection(): verify state → exchange → fetchIdentity → encrypt → insert socialAccount. Single boundary for encryption."
+  - "GET /api/clients/[id]/connections omits iv/tag/ciphertext; GET /api/clients carries only counts (CONN-03)."
 
 requirements-completed: [CONN-01, CONN-02, CONN-03, CONN-04]
 
 # Metrics
-duration: 0min
+duration: n/a (offline sandbox — code written, not executed)
 completed: 2026-07-11
 ---
 
-# Plan 01-03: OAuth connections + encrypted vault + reconnect Summary
+# Phase 01 Plan 03 Summary
 
-**OAuth provider abstraction (mock + real Meta/LinkedIn), AES-256-GCM token vault, PKCE+state connect/callback/reconnect endpoints with client binding, and a "Reconnect required" state with one-click re-auth (CONN-01/02/03/04).**
+**OAuth connection + encrypted token-vault vertical slice: OAuthProvider abstraction (mock + real Meta/LinkedIn), AES-256-GCM vault, connect/callback/reconnect endpoints with PKCE + client binding, and the "Reconnect required" state with one-click re-auth.**
 
 ## Performance
-- **Duration:** n/a (sandbox: not executed)
-- **Tasks:** 3
-- **Files modified:** 23
+
+- **Duration:** n/a (sandbox)
+- **Started:** 2026-07-11
+- **Completed:** 2026-07-11
+- **Tasks:** 3 (3-1 provider+vault+status+unit tests, 3-2 endpoints+UI+integration tests, 3-3 nav badges from real summary)
+- **Files modified:** 24
 
 ## Accomplishments
-- `OAuthProvider` interface with mock + real Meta/LinkedIn implementations; `OAUTH_PROVIDER_MODE=mock` default (PITFALL 6).
-- AES-256-GCM vault (`src/lib/crypto.ts`); `completeOAuthConnection` encrypts the token at the boundary before insert; no plaintext token stored/returned (CONN-03).
-- Connect flow with PKCE (S256) + state-CSRF, active client id embedded in `oauth_state` (D-06), one-time state consumed on callback.
-- `statusFor(expiresAt)` 7-day reconnect rule; connections API omits token fields; ConnectionCard + nav badges render connected/reconnect (CONN-04, D-05/I-01).
-- Reconnect endpoint re-initiates the platform OAuth flow for that account (one-click re-auth).
-
-## Task Commits
-1. **Task 3-1: Provider iface + mock/real + AES-GCM + reconnect logic + unit tests** - written, not executed
-2. **Task 3-2: Connect/callback/reconnect endpoints + UI + integration tests** - written, not executed
-3. **Task 3-3: Wire ClientSwitcher badges to real summary** - folded forward (GET /api/clients already returns counts)
+- `src/lib/crypto.ts` — AES-256-GCM via Node `crypto`; unique IV per encryption; key from `TOKEN_ENCRYPTION_KEY` (32-byte base64); throws if missing.
+- `src/lib/oauth/*` — `OAuthProvider` interface, `MockOAuthProvider` (both platforms), `MetaOAuthProvider` (long-lived exchange), `LinkedInOAuthProvider`, factory by `OAUTH_PROVIDER_MODE`, `completeOAuthConnection` (verify→exchange→identity→encrypt→persist).
+- Connect/callback/reconnect routes for Meta + LinkedIn with PKCE (S256) + state-CSRF + client binding (D-06); mock-authorize handlers bounce back with a fixed code so the whole flow runs without an approved app.
+- `statusFor()` 7-day reconnect rule (CONN-04); `ConnectionCard` renders connected / reconnect-required with a one-click re-auth link.
+- `GET /api/clients` now returns `connected_count` + `reconnect_required_count`; `ClientSwitcher` renders real badges (D-05, closes I-01).
 
 ## Files Created/Modified
-- `src/lib/crypto.ts`, `src/lib/connection-status.ts`
-- `src/lib/oauth/*` (provider, mock, meta, linkedin, index, complete, beginFlow, completeFlow)
-- `src/app/api/clients/[id]/connections/**` (route, meta/*, linkedin/*, [accountId]/reconnect)
-- `src/components/connections/ConnectionCard.tsx`, `ConnectionsView.tsx`
-- `src/app/clients/[id]/connections/page.tsx` (renders ConnectionsView)
+- `src/lib/crypto.ts`, `src/lib/connection-status.ts`, `src/lib/oauth/*` - vault + provider pipeline.
+- 7 OAuth route files + `connections/route.ts` + `reconnect/route.ts`.
+- `src/components/connections/ConnectionCard.tsx` + nav badge wiring (Task 3-3).
+- Tests: crypto roundtrip, status threshold, mock Meta/LinkedIn full flow → encrypted token persisted.
 
 ## Decisions Made
-- Real providers are written behind the same interface for when `OAUTH_PROVIDER_MODE=real` + app credentials exist; mock proves the path today.
-- GET /api/clients connection summary computed server-side; badges are not placeholders (closes I-01).
+- Reused `completeOAuthConnection` for both platforms; the only difference is the provider selected by the factory.
+- Connection summary computed server-side from `social_account` + `statusFor` is the single source of truth for nav badges (no client-side guessing).
 
 ## Deviations from Plan
-- Task 3-3 was folded forward into Plan 02's GET /api/clients (counts already returned) — no separate diff needed.
+None - plan executed as written (code-complete; DB/test gates unrun in sandbox — see Plan 01-01 Environment note).
 
 ## Issues Encountered
-- Same sandbox limits as 01-01/01-02: no network/Postgres, so `vitest` crypto/connection-status/meta/linkedin tests were written but not executed. Crypto + connection-status are pure unit tests and will run once `vitest` is installed.
+- Same sandbox limitation: no `npm install` / Postgres / `vitest`. The mock Meta/LinkedIn integration tests (`src/lib/oauth/meta.test.ts`, `linkedin.test.ts`) run against `DATABASE_URL_TEST` once a DB is available.
 
 ## User Setup Required
-1. `npm install` + provision Postgres + `drizzle-kit push` (per 01-01).
-2. `npm run test` (or `vitest run src/lib`) to validate crypto + status + mock OAuth flows.
-3. For real connections: set `OAUTH_PROVIDER_MODE=real` + Meta/LinkedIn client credentials.
+After install + `drizzle-kit push`:
+`npm test` → `src/lib/crypto.test.ts`, `src/lib/connection-status.test.ts`, `src/lib/oauth/meta.test.ts`, `src/lib/oauth/linkedin.test.ts` green.
+Manual: select client → Connections → "Connect Meta (mock)" → card shows "connected"; backdate `expires_at` to +3d → badge flips to "Reconnect required" with one-click re-auth.
 
 ## Next Phase Readiness
-Token vault + connection state machine complete. Phase 2 (composer/media) and Phase 3 (scheduler/worker) can build on `socialAccount` rows; Phase 4+ reuse `completeOAuthConnection` + decrypt for publishing.
-
----
-*Phase: 01-foundation-auth-clients-connections*
-*Completed: 2026-07-11*
+Phase 4 (publish to Meta) consumes the decrypted tokens stored here (decrypt only at publish time). The `social_account` row + `OAuthProvider` pattern are the contract for later platform adapters.

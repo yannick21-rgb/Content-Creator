@@ -1,61 +1,74 @@
+"use client";
+
 import type { ConnectionStatus } from "@/lib/connection-status";
 
-export interface ConnectionCardProps {
-  platform: "meta" | "linkedin";
+type ConnectionView = {
+  id: string;
+  platform: string;
+  platformAccountId: string;
   name: string | null;
+  expiresAt: Date | null;
   status: ConnectionStatus;
-  reconnectUrl: string;
-}
+} | null;
 
-export default function ConnectionCard({
+const LABELS: Record<string, string> = {
+  meta: "Meta (Facebook / Instagram)",
+  linkedin: "LinkedIn",
+};
+
+export function ConnectionCard({
+  clientId,
   platform,
-  name,
-  status,
-  reconnectUrl,
-}: ConnectionCardProps) {
-  const isReconnect = status === "reconnect_required";
+  connection,
+}: {
+  clientId: string;
+  platform: "meta" | "linkedin";
+  connection: ConnectionView;
+}) {
   return (
-    <div
-      style={{
-        border: "1px solid #1f2937",
-        borderRadius: 12,
-        padding: 16,
-        background: "#0b0f17",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <strong style={{ textTransform: "capitalize" }}>{platform}</strong>
-          {name && <div style={{ color: "#9ca3af", fontSize: 13 }}>{name}</div>}
-        </div>
-        {isReconnect ? (
-          <a
-            href={reconnectUrl}
-            style={{
-              fontSize: 12,
-              padding: "4px 10px",
-              borderRadius: 999,
-              background: "#78350f",
-              color: "#fcd34d",
-              textDecoration: "none",
-            }}
-          >
-            Reconnect required
-          </a>
-        ) : (
-          <span
-            style={{
-              fontSize: 12,
-              padding: "4px 10px",
-              borderRadius: 999,
-              background: "#064e3b",
-              color: "#6ee7b7",
-            }}
-          >
-            Connected
-          </span>
+    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-medium">{LABELS[platform] ?? platform}</h2>
+        {connection && (
+          <StatusBadge status={connection.status} />
         )}
       </div>
+
+      {connection ? (
+        <div className="mt-2 text-sm text-white/70">
+          <p>{connection.name ?? connection.platformAccountId}</p>
+          <a
+            href={`/api/clients/${clientId}/connections/${connection.id}/reconnect`}
+            className="mt-3 inline-block rounded-md border border-white/10 px-3 py-1.5 text-sm hover:bg-white/5"
+          >
+            {connection.status === "reconnect_required"
+              ? "Reconnect required — re-authorize"
+              : "Reconnect"}
+          </a>
+        </div>
+      ) : (
+        <a
+          href={`/api/clients/${clientId}/connections/${platform}/start`}
+          className="mt-3 inline-block rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium hover:bg-indigo-500"
+        >
+          Connect {LABELS[platform] ?? platform}
+        </a>
+      )}
     </div>
+  );
+}
+
+function StatusBadge({ status }: { status: ConnectionStatus }) {
+  if (status === "connected") {
+    return (
+      <span className="rounded bg-emerald-600/20 px-2 py-0.5 text-xs text-emerald-300">
+        Connected
+      </span>
+    );
+  }
+  return (
+    <span className="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-300">
+      Reconnect required
+    </span>
   );
 }

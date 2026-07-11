@@ -1,51 +1,54 @@
-import type {
-  AuthorizeParams,
-  ExchangeParams,
-  OAuthIdentity,
-  OAuthProvider,
-  OAuthToken,
-} from "./provider";
+import type { OAuthProvider, OAuthToken, OAuthIdentity } from "./provider";
 
-const META_AUTH_BASE = "https://www.facebook.com/v22.0/dialog/oauth";
-const META_TOKEN_URL = "https://graph.facebook.com/v22.0/oauth/access_token";
-const META_SCOPES = [
-  "instagram_business_basic",
-  "instagram_business_content_publish",
-  "pages_show_list",
-  "pages_read_engagement",
-];
+const META_API = "https://graph.facebook.com/v22.0";
 
-/**
- * Real Meta (Facebook/Instagram) OAuth provider.
- * exchangeCode performs the short→long-lived token swap (PITFALL 2) before
- * returning, so only a 60-day token is ever persisted.
- */
-export class MetaProvider implements OAuthProvider {
+export class MetaOAuthProvider implements OAuthProvider {
   platform = "meta" as const;
 
-  getAuthorizeUrl(p: AuthorizeParams): string {
-    const clientId = process.env.META_CLIENT_ID;
-    const url = new URL(META_AUTH_BASE);
-    url.searchParams.set("client_id", clientId ?? "");
-    url.searchParams.set("redirect_uri", p.redirectUri);
-    url.searchParams.set("state", p.state);
-    url.searchParams.set("scope", META_SCOPES.join(","));
-    url.searchParams.set("code_challenge", p.codeChallenge);
-    url.searchParams.set("code_challenge_method", "S256");
-    return url.toString();
+  getScopes(): string[] {
+    return [
+      "instagram_business_basic",
+      "instagram_business_content_publish",
+      "pages_show_list",
+      "pages_read_engagement",
+    ];
   }
 
-  async exchangeCode(p: ExchangeParams): Promise<OAuthToken> {
-    // 1) short-lived token
-    const shortRes = await fetch(META_TOKEN_URL, {
+  getAuthorizeUrl(p: {
+    state: string;
+    codeChallenge: string;
+    redirectUri: string;
+  }): string {
+    const clientId = process.env.META_CLIENT_ID;
+    if (!clientId) throw new Error("META_CLIENT_ID is not set");
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: p.redirectUri,
+      state: p.state,
+      scope: this.getScopes().join(","),
+      response_type: "code",
+      code_challenge: p.codeChallenge,
+      code_challenge_method: "S256",
+    });
+    return `https://www.facebook.com/v22.0/dialog/oauth?${params.toString()}`;
+  }
+
+  // Exchange the code for a short-lived token, then swap for a 60-day
+  // long-lived token (PITFALL 2). Never persist the short-lived token.
+  async exchangeCode(p: {
+    code: string;
+    redirectUri: string;
+  }): Promise<OAuthToken> {
+    const clientId = process.env.META_CLIENT_ID!;
+    const clientSecret = process.env.META_CLIENT_SECRET!;
+    const shortRes = await fetch(`${META_API}/oauth/access_token`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        client_id: process.env.META_CLIENT_ID,
-        client_secret: process.env.META_CLIENT_SECRET,
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
         code: p.code,
         redirect_uri: p.redirectUri,
-        code_verifier: p.codeVerifier,
       }),
     });
     const shortJson = (await shortRes.json()) as {
@@ -53,52 +56,51 @@ export class MetaProvider implements OAuthProvider {
       expires_in?: number;
     };
     if (!shortJson.access_token) {
-      throw new Error("Meta token exchange failed");
+      throw new Error("Meta short-lived token exchange failed");
     }
 
-    // 2) long-lived (60d) exchange
-    const longRes = await fetch(META_TOKEN_URL, {
+    const longRes = await fetch(`${META_API}/oauth/access_token`, {
       method: "GET",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      // fb_exchange_token for long-lived (60d)
+      // @ts-expect-error URLSearchParams is accepted as body
+      body: new URLSearchParams({
+        grant_type: "fb_exchange_token",
+        client_id: clientId,
+        client_secret: clientSecret,
+        fb_exchange_token: shortJson.access_token,
+      }),
     });
-    const longUrl = new URL(META_TOKEN_URL);
-    longUrl.searchParams.set("grant_type", "fb_exchange_token");
-    longUrl.searchParams.set("client_id", process.env.META_CLIENT_ID ?? "");
-    longUrl.searchParams.set("client_secret", process.env.META_CLIENT_SECRET ?? "");
-    longUrl.searchParams.set("fb_exchange_token", shortJson.access_token);
-    const longFetch = await fetch(longUrl.toString());
-    const longJson = (await longFetch.json()) as {
+    const longJson = (await longRes.json()) as {
       access_token: string;
       expires_in?: number;
     };
-
+    const token = longJson.access_token ?? shortJson.access_token;
     const expiresIn = longJson.expires_in ?? shortJson.expires_in ?? 60 * 24 * 60 * 60;
     return {
-      accessToken: longJson.access_token ?? shortJson.access_token,
+      accessToken: token,
       expiresAt: new Date(Date.now() + expiresIn * 1000),
       longLived: true,
     };
   }
 
   async fetchIdentity(accessToken: string): Promise<OAuthIdentity> {
+    // Fetch the linked Instagram Business account / Page id.
     const res = await fetch(
-      "https://graph.facebook.com/v22.0/me/accounts?fields=id,name,instagram_business_account{id,username}",
-      { headers: { Authorization: `Bearer ${accessToken}` } },
+      `${META_API}/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${accessToken}`,
     );
     const json = (await res.json()) as {
-      id?: string;
-      name?: string;
-      instagram_business_account?: { id?: string; username?: string };
+      data?: Array<{
+        id: string;
+        name: string;
+        instagram_business_account?: { id: string; username?: string };
+      }>;
     };
-    const platformAccountId =
-      json.instagram_business_account?.id ?? json.id ?? "unknown";
+    const page = json.data?.[0];
+    if (!page) throw new Error("No Meta page found for token");
     return {
-      platformAccountId,
-      name: json.instagram_business_account?.username ?? json.name ?? "Meta Account",
+      platformAccountId: page.instagram_business_account?.id ?? page.id,
+      name: page.instagram_business_account?.username ?? page.name,
     };
-  }
-
-  getScopes(): string[] {
-    return META_SCOPES;
   }
 }

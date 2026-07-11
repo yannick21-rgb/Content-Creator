@@ -1,36 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { client, socialAccount } from "@/lib/db/schema";
-import { requireClientScope, listConnections } from "@/lib/clients";
-import { statusFor } from "@/lib/connection-status";
-import { errorResponse } from "@/lib/http";
+import { requireUser, assertClientOwned, listConnections, HttpError } from "@/lib/clients";
 
-type Params = { params: Promise<{ id: string }> };
-
-export async function GET(_req: NextRequest, { params }: Params) {
+// GET /api/clients/[id]/connections — scoped list with status, token fields omitted.
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
-    const userId = await requireClientScope();
+    const userId = await requireUser(req.headers);
     const { id } = await params;
-    const [owned] = await db
-      .select()
-      .from(client)
-      .where(and(eq(client.id, id), eq(client.userId, userId)));
-    if (!owned) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
+    await assertClientOwned(id, userId);
     const rows = await listConnections(id);
-    // Omit all token fields (CONN-03) — never serialize iv/tag/ciphertext.
-    const safe = rows.map((r) => ({
-      id: r.id,
-      platform: r.platform,
-      platformAccountId: r.platformAccountId,
-      name: r.name,
-      expiresAt: r.expiresAt,
-      status: statusFor(r.expiresAt),
-      createdAt: r.createdAt,
-    }));
-    return NextResponse.json(safe);
-  } catch (e) {
-    return errorResponse(e);
+    // listConnections already omits ciphertext/iv/tag.
+    return NextResponse.json(rows);
+  } catch (err) {
+    if (err instanceof HttpError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    throw err;
   }
 }

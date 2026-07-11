@@ -1,9 +1,20 @@
-import { NextRequest } from "next/server";
-import { beginOAuthFlow } from "@/lib/oauth/beginFlow";
+import { NextRequest, NextResponse } from "next/server";
+import { requireUser, assertClientOwned, HttpError } from "@/lib/clients";
+import { beginOAuth } from "@/lib/oauth/start";
 
-type Params = { params: Promise<{ id: string }> };
-
-export async function GET(req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  return beginOAuthFlow(req, "linkedin", id);
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const userId = await requireUser(req.headers);
+    const { id } = await params;
+    await assertClientOwned(id, userId);
+    return await beginOAuth("linkedin", id, req);
+  } catch (err) {
+    if (err instanceof HttpError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    throw err;
+  }
 }

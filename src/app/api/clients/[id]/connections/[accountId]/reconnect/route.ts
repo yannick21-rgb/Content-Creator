@@ -1,37 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { requireUser, assertClientOwned, HttpError } from "@/lib/clients";
 import { db } from "@/lib/db";
-import { client, socialAccount } from "@/lib/db/schema";
-import { requireClientScope } from "@/lib/clients";
-import { errorResponse } from "@/lib/http";
+import { socialAccount } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 
-type Params = { params: Promise<{ id: string; accountId: string }> };
-
-export async function GET(req: NextRequest, { params }: Params) {
+// One-click re-auth (CONN-04): re-initiate OAuth for a specific account's platform.
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string; accountId: string }> },
+) {
   try {
-    const userId = await requireClientScope();
+    const userId = await requireUser(req.headers);
     const { id, accountId } = await params;
+    await assertClientOwned(id, userId);
 
-    const [acc] = await db
+    const [account] = await db
       .select()
       .from(socialAccount)
-      .where(eq(socialAccount.id, accountId));
-    if (!acc) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      .where(
+        and(eq(socialAccount.id, accountId), eq(socialAccount.clientId, id)),
+      );
+    if (!account) {
+      return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
-    const [owned] = await db
-      .select()
-      .from(client)
-      .where(and(eq(client.id, id), eq(client.userId, userId)));
-    if (!owned || acc.clientId !== id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // One-click re-auth: re-initiate the OAuth flow for this account's platform.
+    const origin = req.nextUrl.origin;
     return NextResponse.redirect(
-      `${req.nextUrl.origin}/api/clients/${id}/connections/${acc.platform}/start`,
+      `${origin}/api/clients/${id}/connections/${account.platform}/start`,
     );
-  } catch (e) {
-    return errorResponse(e);
+  } catch (err) {
+    if (err instanceof HttpError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    throw err;
   }
 }

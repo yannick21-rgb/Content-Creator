@@ -1,47 +1,53 @@
-import { eq } from "drizzle-orm";
-import { db } from "../db";
-import { oauthState, socialAccount } from "../db/schema";
-import { encrypt } from "../crypto";
-import { getProvider } from "./index";
-import type { Platform } from "./provider";
+import { db } from "./db";
+import { oauthState, socialAccount } from "./db/schema";
+import { eq, and } from "drizzle-orm";
+import { getProvider } from "./oauth";
+import { encrypt } from "./crypto";
+import type { Platform } from "./oauth/provider";
 
 export interface CompleteParams {
+  platform: Platform;
   code: string;
   state: string;
   codeVerifier: string;
   redirectUri: string;
 }
 
-/**
- * Verifies the OAuth state, exchanges the code, fetches identity, encrypts the
- * token at the boundary, and persists the social_account bound to the client
- * embedded in the state (D-06 target-confusion safe). No plaintext token is
- * ever returned. (CONN-01/02/03)
- */
-export async function completeOAuthConnection(platform: Platform, p: CompleteParams) {
+// Verify the OAuth state (CSRF + client binding), exchange the code, fetch the
+// identity, encrypt the token at the boundary, and persist the social account
+// bound to the client embedded in the oauth_state row (D-06).
+export async function completeOAuthConnection(params: CompleteParams) {
+  const { platform, code, state, codeVerifier, redirectUri } = params;
+
   const [stored] = await db
     .select()
     .from(oauthState)
-    .where(eq(oauthState.state, p.state));
+    .where(
+      and(eq(oauthState.state, state), eq(oauthState.provider, platform)),
+    );
 
-  if (!stored) throw new Error("Invalid or expired OAuth state");
-  if (stored.expiresAt < new Date()) throw new Error("OAuth state expired");
-  if (stored.provider !== platform) throw new Error("Provider mismatch");
+  if (!stored) {
+    throw new Error("OAuth state not found or already consumed");
+  }
+  if (stored.expiresAt.getTime() < Date.now()) {
+    await db.delete(oauthState).where(eq(oauthState.id, stored.id));
+    throw new Error("OAuth state expired");
+  }
+  if (stored.codeVerifier !== codeVerifier) {
+    throw new Error("PKCE verifier mismatch");
+  }
 
   const clientId = stored.clientId;
+
+  // Consume the state row immediately (single use).
+  await db.delete(oauthState).where(eq(oauthState.id, stored.id));
+
   const provider = getProvider(platform);
-  const token = await provider.exchangeCode({
-    code: p.code,
-    codeVerifier: p.codeVerifier,
-    redirectUri: p.redirectUri,
-  });
+  const token = await provider.exchangeCode({ code, codeVerifier, redirectUri });
   const identity = await provider.fetchIdentity(token.accessToken);
 
-  const enc = encrypt(token.accessToken);
+  const accessEnc = encrypt(token.accessToken);
   const refreshEnc = token.refreshToken ? encrypt(token.refreshToken) : null;
-
-  // Consume the one-time OAuth state.
-  await db.delete(oauthState).where(eq(oauthState.state, p.state));
 
   const [row] = await db
     .insert(socialAccount)
@@ -50,14 +56,21 @@ export async function completeOAuthConnection(platform: Platform, p: CompletePar
       platform,
       platformAccountId: identity.platformAccountId,
       name: identity.name,
-      accessTokenEnc: enc.ciphertext,
+      accessTokenEnc: accessEnc.ciphertext,
+      iv: accessEnc.iv,
+      tag: accessEnc.tag,
       refreshTokenEnc: refreshEnc ? refreshEnc.ciphertext : null,
-      iv: enc.iv,
-      tag: enc.tag,
       expiresAt: token.expiresAt ?? null,
       keyVersion: 1,
     })
     .returning();
 
-  return row;
+  return {
+    id: row.id,
+    platform: row.platform,
+    platformAccountId: row.platformAccountId,
+    name: row.name,
+    expiresAt: row.expiresAt,
+    keyVersion: row.keyVersion,
+  };
 }
