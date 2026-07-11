@@ -12,7 +12,7 @@ Content-Creator is an agency tool to generate, schedule, and publish content to 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation — Auth, Clients & Connections** - Team sign-in, isolated multi-client workspaces, and OAuth token vault with encrypted storage + reconnect state
+- [x] **Phase 1: Foundation — Auth, Clients & Connections** - Team sign-in, isolated multi-client workspaces, and OAuth token vault with encrypted storage + reconnect state (implemented 2026-07-11; build/test/DB verification pending — sandbox has no network/Postgres)
 - [ ] **Phase 2: Composer & Media Library** - Compose text/image/video/IG-carousel posts with per-platform validation; upload media to a public CDN-ready library
 - [ ] **Phase 3: Scheduler & Worker (reliability proof)** - Schedule posts with correct timezones; durable background worker publishes due jobs idempotently (proven via FakePublisher)
 - [ ] **Phase 4: Publish to Meta (Facebook)** - First real per-platform adapter; immediate publish to connected Meta accounts with tracked status (first vertical MVP)
@@ -35,9 +35,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. OAuth tokens are encrypted at rest (no plaintext tokens retrievable through the app; verifiable in storage).
 **Plans**: 3 plans
 Plans:
-- [ ] 01-01-PLAN.md — Walking skeleton + team auth (AUTH-01, AUTH-02): scaffold Next.js 15 + Drizzle + Better Auth, signup/login with SPEC-exact paths, session survives refresh, full DB schema + [BLOCKING] drizzle-kit push.
-- [ ] 01-02-PLAN.md — Client workspaces & isolation (CLNT-01/02/03): client CRUD API, server-side scoping helper, nav ClientSwitcher (active-client cookie), onboarding, default connections landing.
-- [ ] 01-03-PLAN.md — OAuth connections + encrypted vault + reconnect (CONN-01/02/03/04): OAuthProvider (mock + real Meta/LinkedIn), AES-256-GCM vault, connect/callback/reconnect endpoints, "Reconnect required" state.
+- [x] 01-01-PLAN.md — Walking skeleton + team auth (AUTH-01, AUTH-02): scaffold Next.js + Drizzle + Better Auth, signup/login with SPEC-exact paths, session survives refresh, full DB schema + [BLOCKING] drizzle-kit push (pending).
+- [x] 01-02-PLAN.md — Client workspaces & isolation (CLNT-01/02/03): client CRUD API, server-side scoping helper, nav ClientSwitcher (active-client cookie), onboarding, default connections landing.
+- [x] 01-03-PLAN.md — OAuth connections + encrypted vault + reconnect (CONN-01/02/03/04): OAuthProvider (mock + real Meta/LinkedIn), AES-256-GCM vault, connect/callback/reconnect endpoints, "Reconnect required" state.
 **UI hint**: yes
 
 ### Phase 2: Composer & Media Library
