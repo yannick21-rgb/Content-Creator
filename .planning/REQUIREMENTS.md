@@ -127,6 +127,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 - Mapped to phases: 25
 - Unmapped: 0 ✓
 
+**Phase structure (Vertical MVP, dependency-driven):**
+- Phase 1: Auth, Clients & Connections (AUTH-01/02, CLNT-01/02/03, CONN-01/02/03/04)
+- Phase 2: Composer & Media (COMP-01..05, MEDA-01/02)
+- Phase 3: Scheduler & Worker (SCHD-01..04)
+- Phase 4: Publish to Meta (PUBL-01/02/03) — establishes per-platform adapter + immediate publish
+- Phase 5: Publish to Instagram — extends PUBL-01/02/03 (Instagram coverage; no new IDs)
+- Phase 6: Publish to LinkedIn — extends PUBL-01/02/03 (LinkedIn coverage; no new IDs)
+- Phase 7: AI (Gemini) & Hardening (AIGC-01/02)
+
+Note: Publishing (PUBL-01/02/03) is delivered progressively across Phases 4–6; the IDs are tracked under Phase 4 (the phase that establishes the capability). Phases 5–6 complete multi-platform coverage.
+
 ---
 *Requirements defined: 2026-07-11*
-*Last updated: 2026-07-11 after initial definition*
+*Last updated: 2026-07-11 after roadmap creation (7-phase structure)*
