@@ -30,3 +30,6 @@ next-env.d.ts
 
 # vitest
 /coverage
+
+# opencode workflow internals
+.opencode/

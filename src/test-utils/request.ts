@@ -39,7 +39,12 @@ export function cookieRequest(
   return req;
 }
 
-// Extract a cookie value from a Response's Set-Cookie headers.
+// The Better Auth session cookie name (default in v1).
+export const SESSION_COOKIE = "better-auth.session_token";
+
+export type Cookie = { name: string; value: string };
+
+// Extract the first set-cookie matching the given name.
 export function getCookie(res: Response, name: string): string | undefined {
   const setCookies = res.headers.getSetCookie?.() ?? [];
   for (const c of setCookies) {
@@ -50,8 +55,28 @@ export function getCookie(res: Response, name: string): string | undefined {
   return undefined;
 }
 
-// The Better Auth session cookie name (default in v1).
-export const SESSION_COOKIE = "better-auth.session_token";
+// Read the session cookie generically (name may vary by Better Auth config).
+export function getSessionCookie(res: Response): Cookie | undefined {
+  const setCookies = res.headers.getSetCookie?.() ?? [];
+  for (const c of setCookies) {
+    const [pair, ...attrs] = c.split(";");
+    const [k, v] = pair.split("=");
+    const name = k.trim();
+    const isSession =
+      name === SESSION_COOKIE ||
+      name.toLowerCase().includes("session_token") ||
+      name.toLowerCase().includes("session");
+    if (isSession) {
+      return { name, value: v };
+    }
+  }
+  return undefined;
+}
+
+// Build a cookie record from a session cookie.
+export function cookieRecord(session: Cookie): Record<string, string> {
+  return { [session.name]: session.value };
+}
 
 // Wipe all application rows so each test starts clean.
 export async function cleanupTestData() {
@@ -69,7 +94,7 @@ export async function createAuthedUser(email: string, password = "supersecret123
   const loginRes = await POST_LOGIN(
     jsonRequest(LOGIN_URL, { email, password }),
   );
-  const cookie = getCookie(loginRes, SESSION_COOKIE)!;
+  const cookie = getSessionCookie(loginRes)!;
   const [u] = await db.select().from(user).where(eq(user.email, email));
   return { cookie, userId: u.id };
 }
