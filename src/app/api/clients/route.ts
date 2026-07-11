@@ -12,9 +12,9 @@ import { client } from "@/lib/db/schema";
 
 const createSchema = z.object({ name: z.string().min(1) });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const userId = await requireUser();
+    const userId = await requireUser(req.headers);
     const rows = await listClients(userId);
     const withSummary = await Promise.all(
       rows.map(async (c) => {
@@ -33,7 +33,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireUser();
+    const userId = await requireUser(req.headers);
     const body = await req.json();
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {
@@ -46,8 +46,9 @@ export async function POST(req: NextRequest) {
       .insert(client)
       .values({ userId, name: parsed.data.name })
       .returning();
-    await setActiveClientCookie(row.id);
-    return NextResponse.json(row, { status: 201 });
+    const res = NextResponse.json(row, { status: 201 });
+    setActiveClientCookie(row.id, res);
+    return res;
   } catch (err) {
     if (err instanceof HttpError) {
       return NextResponse.json({ error: err.message }, { status: err.status });

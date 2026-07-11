@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { POST, GET } from "./route";
-import { createAuthedUser, cleanupTestData, jsonRequest, SESSION_COOKIE } from "@/test-utils/request";
+import { createAuthedUser, cleanupTestData, jsonRequest, cookieRecord } from "@/test-utils/request";
 
 const BASE = "http://localhost/api/clients";
 
@@ -12,7 +12,7 @@ describe("POST /api/clients (CLNT-01)", () => {
   it("creates a client owned by the authenticated user", async () => {
     const { cookie, userId } = await createAuthedUser("clients-owner@example.com");
     const res = await POST(
-      jsonRequest(BASE, { name: "Acme" }, { [SESSION_COOKIE]: cookie }),
+      jsonRequest(BASE, { name: "Acme" }, cookieRecord(cookie)),
     );
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -33,10 +33,10 @@ describe("GET /api/clients (CLNT-01)", () => {
 
   it("returns only the authenticated user's clients", async () => {
     const { cookie } = await createAuthedUser("list-owner@example.com");
-    await POST(jsonRequest(BASE, { name: "Acme" }, { [SESSION_COOKIE]: cookie }));
+    await POST(jsonRequest(BASE, { name: "Acme" }, cookieRecord(cookie)));
 
     const res = await GET(
-      jsonRequest(BASE, {}, { [SESSION_COOKIE]: cookie }),
+      jsonRequest(BASE, {}, cookieRecord(cookie)),
     );
     expect(res.status).toBe(200);
     const body = await res.json();

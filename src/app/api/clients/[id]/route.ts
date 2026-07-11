@@ -16,7 +16,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireUser();
+    const userId = await requireUser(req.headers);
     const { id } = await params;
     await assertClientOwned(id, userId);
     const [row] = await db.select().from(client).where(eq(client.id, id));
@@ -34,7 +34,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireUser();
+    const userId = await requireUser(req.headers);
     const { id } = await params;
     await assertClientOwned(id, userId);
     const body = await req.json();
@@ -64,7 +64,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireUser();
+    const userId = await requireUser(req.headers);
     const { id } = await params;
     await assertClientOwned(id, userId);
     // FK cascade removes only this client's socialAccount + oauthState rows.

@@ -1,7 +1,8 @@
 import { cookies, headers } from "next/headers";
+import type { NextResponse } from "next/server";
 import { db } from "./db";
 import { client, socialAccount } from "./db/schema";
-import { eq, and, sql, type SQL } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { auth } from "./auth";
 import { statusFor, type ConnectionStatus } from "./connection-status";
 
@@ -16,9 +17,23 @@ export class HttpError extends Error {
   }
 }
 
+// Parse the active-client cookie from a Headers object (route-handler friendly).
+function activeClientFromHeaders(h: Headers): string | null {
+  const cookie = h.get("cookie");
+  if (!cookie) return null;
+  for (const part of cookie.split(";")) {
+    const [k, v] = part.trim().split("=");
+    if (k === ACTIVE_CLIENT_COOKIE) return v ?? null;
+  }
+  return null;
+}
+
 // Resolve the authenticated user id, throwing 401 when unauthenticated.
-export async function requireUser(): Promise<string> {
-  const session = await auth.api.getSession({ headers: await headers() });
+// Accepts an optional Headers (route handlers pass req.headers) so it works
+// both in server components and in directly-invoked route handlers.
+export async function requireUser(reqHeaders?: Headers): Promise<string> {
+  const h = reqHeaders ?? (await headers());
+  const session = await auth.api.getSession({ headers: h });
   if (!session?.user?.id) {
     throw new HttpError(401, "Unauthenticated");
   }
@@ -26,20 +41,31 @@ export async function requireUser(): Promise<string> {
 }
 
 // Read the active client id from the server-readable cookie (D-02).
-export async function getActiveClientId(): Promise<string | null> {
+export async function getActiveClientId(reqHeaders?: Headers): Promise<string | null> {
+  if (reqHeaders) return activeClientFromHeaders(reqHeaders);
   const store = await cookies();
   return store.get(ACTIVE_CLIENT_COOKIE)?.value ?? null;
 }
 
 // Write the active-client cookie (httpOnly, server-readable — not client-only).
-export async function setActiveClientCookie(clientId: string): Promise<void> {
-  const store = await cookies();
-  store.set(ACTIVE_CLIENT_COOKIE, clientId, {
+// When a NextResponse is provided (route handler), the cookie is set on it so
+// the helper is testable without Next's request-scoped cookies().
+export function setActiveClientCookie(
+  clientId: string,
+  res?: NextResponse,
+): void {
+  const opts = {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
-  });
+  };
+  if (res) {
+    res.cookies.set(ACTIVE_CLIENT_COOKIE, clientId, opts);
+    return;
+  }
+  const store = cookies();
+  store.set(ACTIVE_CLIENT_COOKIE, clientId, opts);
 }
 
 export async function listClients(userId: string) {
