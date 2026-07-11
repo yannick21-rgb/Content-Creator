@@ -57,3 +57,15 @@ export async function cleanupTestData() {
   await db.delete(session);
   await db.delete(user);
 }
+
+// Create a user + return a valid session cookie and the user id (for tests).
+export async function createAuthedUser(email: string, password = "supersecret123") {
+  await POST_SIGNUP(jsonRequest(SIGNUP_URL, { email, password, name: email }));
+  const loginRes = await POST_LOGIN(
+    jsonRequest(LOGIN_URL, { email, password }),
+  );
+  const cookie = getCookie(loginRes, SESSION_COOKIE)!;
+  const [u] = await db.select().from(user).where(eq(user.email, email));
+  return { cookie, userId: u.id };
+}
+
