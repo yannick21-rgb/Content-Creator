@@ -435,22 +435,27 @@ export function statusFor(expiresAt: Date | null): ConnectionStatus {
 | A5 | A managed Postgres (Neon/Supabase) or Docker `postgres:18` will be available at runtime/test | Environment | MEDIUM: local env has NO Postgres/Docker — tests need a provided DATABASE_URL. |
 | A6 | Better Auth default endpoints (`/api/auth/sign-up/email`, `/sign-in/email`) plus thin `/api/auth/signup`,`/login` wrappers satisfy SPEC paths | Architecture | LOW: if exact SPEC paths are hard-required, wrappers handle it. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All three questions were resolved during planning/implementation; none block Phase 1.
 
 1. **Exact SPEC API paths vs Better Auth conventions**
    - What we know: SPEC says `POST /api/auth/signup` and `POST /api/auth/login`; Better Auth uses `/api/auth/sign-up/email` & `/sign-in/email`.
    - What's unclear: whether tests assert the literal SPEC paths.
    - Recommendation: ship the catch-all (`/api/auth/[...all]`) AND thin wrappers at the SPEC paths → both work.
+   - **RESOLVED:** Plan 01 ships the Better Auth catch-all (`/api/auth/[...all]`) AND thin wrappers at `POST /api/auth/signup` + `POST /api/auth/login`; Plan 01 Task 1-3 tests assert those literal SPEC paths (AUTH-01/02). Both conventions coexist.
 
 2. **Test database availability**
    - What we know: local machine has no Postgres/Docker; network is selective.
    - What's unclear: will CI/dev provide a Postgres URL, or should Phase 1 tests run on PGlite (`@electric-sql/pglite` + drizzle pglite driver)?
    - Recommendation: provide `DATABASE_URL_TEST` (Neon free tier recommended); optionally support PGlite for offline unit tests of crypto/scoping logic.
+   - **RESOLVED:** Tests use `DATABASE_URL_TEST` (set in `vitest.setup.ts`, falling back to `DATABASE_URL`); Plan 01 Task 1-3 and Plan 02/03 integration tests run against it. No local Postgres required for CI/dev (managed URL or PGlite fallback).
 
 3. **KMS upgrade path**
    - What we know: Phase 1 uses env `TOKEN_ENCRYPTION_KEY` (AES-256-GCM), KMS deferred.
    - What's unclear: env key rotation procedure.
    - Recommendation: document rotation (re-encrypt rows on key version bump) as a later-phase task; Phase 1 stores a `key_version` column for forward compatibility.
+   - **RESOLVED:** Phase 1 stays on env `TOKEN_ENCRYPTION_KEY` (AES-256-GCM); `social_account.key_version` column is created in Plan 01 schema for forward-compatible KMS re-encryption in a later phase (KMS deferred per 01-CONTEXT out-of-scope). No blocker.
 
 ## Environment Availability
 

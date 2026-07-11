@@ -33,7 +33,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Within a client workspace, the team can connect that client's Facebook/Instagram (Meta OAuth) and LinkedIn accounts, scoped to that client only (isolation).
   4. Connected accounts show a "Reconnect required" state when a token nears expiry, with a one-click re-auth path.
   5. OAuth tokens are encrypted at rest (no plaintext tokens retrievable through the app; verifiable in storage).
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 01-01-PLAN.md — Walking skeleton + team auth (AUTH-01, AUTH-02): scaffold Next.js 15 + Drizzle + Better Auth, signup/login with SPEC-exact paths, session survives refresh, full DB schema + [BLOCKING] drizzle-kit push.
+- [ ] 01-02-PLAN.md — Client workspaces & isolation (CLNT-01/02/03): client CRUD API, server-side scoping helper, nav ClientSwitcher (active-client cookie), onboarding, default connections landing.
+- [ ] 01-03-PLAN.md — OAuth connections + encrypted vault + reconnect (CONN-01/02/03/04): OAuthProvider (mock + real Meta/LinkedIn), AES-256-GCM vault, connect/callback/reconnect endpoints, "Reconnect required" state.
 **UI hint**: yes
 
 ### Phase 2: Composer & Media Library
