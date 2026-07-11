@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { user, account, session, client, socialAccount, oauthState } from "@/lib/db/schema";
+import { user, account, session, client, media, posts, socialAccount, oauthState } from "@/lib/db/schema";
 import { POST as POST_SIGNUP } from "@/app/api/auth/signup/route";
 import { POST as POST_LOGIN } from "@/app/api/auth/login/route";
 
@@ -80,6 +80,8 @@ export function cookieRecord(session: Cookie): Record<string, string> {
 
 // Wipe all application rows so each test starts clean.
 export async function cleanupTestData() {
+  await db.delete(media);
+  await db.delete(posts);
   await db.delete(oauthState);
   await db.delete(socialAccount);
   await db.delete(client);

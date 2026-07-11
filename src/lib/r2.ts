@@ -1,5 +1,5 @@
 // src/lib/r2.ts
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { S3RequestPresigner } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "node:crypto";
 

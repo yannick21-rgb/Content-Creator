@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "../db";
 import { client, oauthState } from "../db/schema";
-import { requireClientScope } from "../clients";
+import { requireUser } from "../clients";
 import { getProvider } from "./index";
 import { errorResponse } from "../http";
 import type { Platform } from "./provider";
@@ -19,7 +19,7 @@ export async function beginOAuthFlow(
   clientId: string,
 ) {
   try {
-    const userId = await requireClientScope();
+    const userId = await requireUser(req.headers);
     const [owned] = await db
       .select()
       .from(client)

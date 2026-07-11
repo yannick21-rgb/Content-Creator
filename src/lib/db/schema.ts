@@ -5,6 +5,7 @@ import {
   boolean,
   uuid,
   integer,
+  json,
   check,
   sql,
 } from "drizzle-orm/pg-core";
@@ -122,6 +123,35 @@ export const oauthState = pgTable("oauth_state", {
 });
 
 // ---------------------------------------------------------------------------
+// Phase 2 — Posts & Media
+// ---------------------------------------------------------------------------
+
+export const posts = pgTable("posts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => client.id, { onDelete: "cascade" }),
+  title: text("title"),
+  text: text("text").notNull(),
+  multiImage: boolean("multi_image").default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const media = pgTable("media", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => client.id, { onDelete: "cascade" }),
+  key: text("key").notNull(),
+  publicUrl: text("public_url").notNull(),
+  contentType: text("content_type").notNull(),
+  uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
+  metadata: json("metadata"),
+  postId: uuid("post_id").references(() => posts.id, { onDelete: "set null" }),
+});
+
+// ---------------------------------------------------------------------------
 // Relations
 // ---------------------------------------------------------------------------
 
@@ -138,6 +168,8 @@ export const clientRelations = relations(client, ({ one, many }) => ({
   }),
   socialAccounts: many(socialAccount),
   oauthStates: many(oauthState),
+  posts: many(posts),
+  media: many(media),
 }));
 
 export const socialAccountRelations = relations(socialAccount, ({ one }) => ({
@@ -154,6 +186,25 @@ export const oauthStateRelations = relations(oauthState, ({ one }) => ({
   }),
 }));
 
+export const postsRelations = relations(posts, ({ one, many }) => ({
+  client: one(client, {
+    fields: [posts.clientId],
+    references: [client.id],
+  }),
+  media: many(media),
+}));
+
+export const mediaRelations = relations(media, ({ one }) => ({
+  client: one(client, {
+    fields: [media.clientId],
+    references: [client.id],
+  }),
+  post: one(posts, {
+    fields: [media.postId],
+    references: [posts.id],
+  }),
+}));
+
 // ---------------------------------------------------------------------------
 // Type exports
 // ---------------------------------------------------------------------------
@@ -166,3 +217,7 @@ export type SocialAccount = typeof socialAccount.$inferSelect;
 export type NewSocialAccount = typeof socialAccount.$inferInsert;
 export type OauthState = typeof oauthState.$inferSelect;
 export type NewOauthState = typeof oauthState.$inferInsert;
+export type Post = typeof posts.$inferSelect;
+export type NewPost = typeof posts.$inferInsert;
+export type Media = typeof media.$inferSelect;
+export type NewMedia = typeof media.$inferInsert;

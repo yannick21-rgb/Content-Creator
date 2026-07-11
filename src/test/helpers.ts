@@ -2,7 +2,9 @@ import { db } from "@/lib/db";
 import {
   account,
   client,
+  media,
   oauthState,
+  posts,
   session,
   socialAccount,
   user,
@@ -10,8 +12,10 @@ import {
 } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
 
-/** Clears all Phase 1 tables between tests (depends on FK cascade order). */
+/** Clears all tables between tests (depends on FK cascade order). */
 export async function clearDb() {
+  await db.delete(media);
+  await db.delete(posts);
   await db.delete(oauthState);
   await db.delete(socialAccount);
   await db.delete(session);
