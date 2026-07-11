@@ -1,27 +1,26 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-import { listClients } from "@/lib/clients";
-import CreateClientForm from "@/components/onboarding/CreateClientForm";
+import { requireUser, listClients, resolveActiveClientId } from "@/lib/clients";
+import { OnboardingForm } from "./OnboardingForm";
 
+// D-03: after login, if the user has zero clients, send them to onboarding.
 export default async function OnboardingPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) redirect("/login");
+  const userId = await requireUser().catch(() => null);
+  if (!userId) redirect("/login");
 
-  const clients = await listClients(session.user.id);
+  const clients = await listClients(userId);
   if (clients.length > 0) {
-    redirect(`/clients/${clients[0].id}/connections`);
+    const active = await resolveActiveClientId();
+    redirect(active ? `/clients/${active}/connections` : "/dashboard");
   }
 
   return (
-    <main style={{ maxWidth: 520, margin: "10vh auto", padding: 24 }}>
-      <h1 style={{ fontSize: 24 }}>Welcome — create your first client</h1>
-      <p style={{ marginTop: 8, color: "#9ca3af" }}>
-        A client is an isolated workspace for one of your agency&apos;s accounts.
+    <main className="mx-auto max-w-md p-8">
+      <h1 className="mb-2 text-xl font-semibold">Create your first client</h1>
+      <p className="mb-6 text-sm text-white/60">
+        A client is a workspace for one of your agency&apos;s customers. You can
+        connect their social accounts here.
       </p>
-      <div style={{ marginTop: 20 }}>
-        <CreateClientForm />
-      </div>
+      <OnboardingForm />
     </main>
   );
 }
