@@ -16,7 +16,13 @@ export async function GET() {
   try {
     const userId = await requireUser();
     const rows = await listClients(userId);
-    return NextResponse.json(rows);
+    const withSummary = await Promise.all(
+      rows.map(async (c) => {
+        const summary = await clientConnectionSummary(c.id);
+        return { ...c, ...summary };
+      }),
+    );
+    return NextResponse.json(withSummary);
   } catch (err) {
     if (err instanceof HttpError) {
       return NextResponse.json({ error: err.message }, { status: err.status });

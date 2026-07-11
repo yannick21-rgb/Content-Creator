@@ -1,25 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import {
-  requireClientScope,
+  requireUser,
+  assertClientOwned,
   setActiveClientCookie,
-  listClients,
+  HttpError,
 } from "@/lib/clients";
-import { errorResponse } from "@/lib/http";
 
-const schema = z.object({ clientId: z.string().min(1) });
+const schema = z.object({ clientId: z.string().uuid() });
 
+// Sets the active-client cookie (D-01, D-02). Called by the nav dropdown.
 export async function POST(req: NextRequest) {
   try {
-    const userId = await requireClientScope();
-    const { clientId } = schema.parse(await req.json());
-    const owned = await listClients(userId);
-    if (!owned.some((c) => c.id === clientId)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const userId = await requireUser();
+    const body = await req.json();
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid body" }, { status: 400 });
     }
-    await setActiveClientCookie(clientId);
-    return NextResponse.json({ ok: true, clientId });
-  } catch (e) {
-    return errorResponse(e);
+    await assertClientOwned(parsed.data.clientId, userId);
+    await setActiveClientCookie(parsed.data.clientId);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    if (err instanceof HttpError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    throw err;
   }
 }
