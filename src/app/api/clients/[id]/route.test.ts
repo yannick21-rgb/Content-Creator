@@ -1,87 +1,74 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { NextRequest } from "next/server";
-import { GET, PATCH, DELETE } from "@/app/api/clients/[id]/route";
+import { GET, PATCH, DELETE } from "./route";
+import { POST as POST_CLIENT } from "@/app/api/clients/route";
+import { createAuthedUser, cleanupTestData, jsonRequest, SESSION_COOKIE } from "@/test-utils/request";
 import { db } from "@/lib/db";
 import { client, socialAccount } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { clearDb, signUpAndGetCookie, cookieHeader } from "@/test/helpers";
 
-const EMAIL = `clients-id-${Date.now()}@example.com`;
-const PASSWORD = "password123";
+const BASE = "http://localhost/api/clients";
 
 async function createClient(cookie: string, name: string) {
-  const res = await (
-    await import("@/app/api/clients/route")
-  ).POST(
-    new NextRequest("http://localhost/api/clients", {
-      method: "POST",
-      headers: { "content-type": "application/json", ...cookieHeader(cookie) },
-      body: JSON.stringify({ name }),
-    }),
-  );
+  const res = await POST_CLIENT(jsonRequest(BASE, { name }, { [SESSION_COOKIE]: cookie }));
   return (await res.json()) as { id: string };
 }
 
-describe("GET/PATCH/DELETE /api/clients/:id (CLNT-03)", () => {
-  let cookie: string;
-  let c1: string;
-  let c2: string;
+describe("GET/PATCH/DELETE /api/clients/[id] (CLNT-03)", () => {
   beforeEach(async () => {
-    await clearDb();
-    cookie = await signUpAndGetCookie(EMAIL, PASSWORD);
-    c1 = (await createClient(cookie, "Client One")).id;
-    c2 = (await createClient(cookie, "Client Two")).id;
+    await cleanupTestData();
   });
 
-  it("lists two distinct clients", async () => {
-    const res = await GET(
-      new NextRequest(`http://localhost/api/clients/${c1}`, {
-        method: "GET",
-        headers: cookieHeader(cookie),
+  it("patches one client without altering another", async () => {
+    const { cookie } = await createAuthedUser("patch-owner@example.com");
+    const a = await createClient(cookie, "Client A");
+    const b = await createClient(cookie, "Client B");
+
+    const res = await PATCH(
+      jsonRequest(`${BASE}/${a.id}`, { name: "Client A renamed" }, {
+        [SESSION_COOKIE]: cookie,
       }),
-      { params: Promise.resolve({ id: c1 }) },
     );
-    const row = await res.json();
-    expect(row.id).toBe(c1);
-    expect(row.name).toBe("Client One");
+    expect(res.status).toBe(200);
+    expect((await res.json()).name).toBe("Client A renamed");
+
+    const bRes = await GET(
+      jsonRequest(`${BASE}/${b.id}`, {}, { [SESSION_COOKIE]: cookie }),
+    );
+    expect((await bRes.json()).name).toBe("Client B");
   });
 
-  it("PATCH updates only the targeted client", async () => {
-    await PATCH(
-      new NextRequest(`http://localhost/api/clients/${c1}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json", ...cookieHeader(cookie) },
-        body: JSON.stringify({ name: "Client One Renamed" }),
-      }),
-      { params: Promise.resolve({ id: c1 }) },
-    );
-    const [a] = await db.select().from(client).where(eq(client.id, c1));
-    const [b] = await db.select().from(client).where(eq(client.id, c2));
-    expect(a.name).toBe("Client One Renamed");
-    expect(b.name).toBe("Client Two");
-  });
+  it("deletes one client and only cascades its own social accounts", async () => {
+    const { cookie } = await createAuthedUser("delete-owner@example.com");
+    const a = await createClient(cookie, "Client A");
+    const b = await createClient(cookie, "Client B");
 
-  it("DELETE cascades only the targeted client's social accounts", async () => {
+    // Seed a social account on client A.
     await db.insert(socialAccount).values({
-      clientId: c1,
+      clientId: a.id,
       platform: "meta",
-      platformAccountId: "ig-1",
+      platformAccountId: "page-1",
       name: "Meta",
       accessTokenEnc: "x",
-      iv: "x",
-      tag: "x",
+      iv: "y",
+      tag: "z",
       keyVersion: 1,
     });
-    await DELETE(
-      new NextRequest(`http://localhost/api/clients/${c1}`, {
-        method: "DELETE",
-        headers: cookieHeader(cookie),
-      }),
-      { params: Promise.resolve({ id: c1 }) },
+
+    const del = await DELETE(
+      jsonRequest(`${BASE}/${a.id}`, {}, { [SESSION_COOKIE]: cookie }),
     );
-    const remaining = await db.select().from(socialAccount);
+    expect(del.status).toBe(204);
+
+    const remaining = await db
+      .select()
+      .from(socialAccount)
+      .where(eq(socialAccount.clientId, b.id));
+    // B's (empty) scope is untouched; A's account is gone.
+    const aAccounts = await db
+      .select()
+      .from(socialAccount)
+      .where(eq(socialAccount.clientId, a.id));
+    expect(aAccounts.length).toBe(0);
     expect(remaining.length).toBe(0);
-    const [b] = await db.select().from(client).where(eq(client.id, c2));
-    expect(b).toBeDefined();
   });
 });

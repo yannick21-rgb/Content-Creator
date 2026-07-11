@@ -1,61 +1,44 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { db } from "@/lib/db";
-import { client, socialAccount } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { createAuthedUser, createClientFor, cleanupTestData } from "@/test-utils/clients-helper";
 import { listConnections } from "@/lib/clients";
-import { clearDb, signUpAndGetCookie } from "@/test/helpers";
-
-const EMAIL = `scope-${Date.now()}@example.com`;
-const PASSWORD = "password123";
+import { db } from "@/lib/db";
+import { socialAccount } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 describe("client isolation (CLNT-02)", () => {
-  let userId: string;
-  let clientX: string;
-  let clientY: string;
-
   beforeEach(async () => {
-    await clearDb();
-    const cookie = await signUpAndGetCookie(EMAIL, PASSWORD);
-    const sess = await (
-      await import("@/lib/auth")
-    ).auth.api.getSession({ headers: cookieHeaderFor(cookie) });
-    userId = sess!.user.id;
+    await cleanupTestData();
+  });
 
-    const [x] = await db
-      .insert(client)
-      .values({ userId, name: "X" })
-      .returning();
-    const [y] = await db
-      .insert(client)
-      .values({ userId, name: "Y" })
-      .returning();
-    clientX = x.id;
-    clientY = y.id;
+  it("a request scoped to client Y returns no rows for client X's account", async () => {
+    const { cookie } = await createAuthedUser("scope-owner@example.com");
+    const x = await createClientFor(cookie, "Client X");
+    const y = await createClientFor(cookie, "Client Y");
 
     await db.insert(socialAccount).values({
-      clientId: clientX,
+      clientId: x.id,
       platform: "meta",
-      platformAccountId: "ig-x",
+      platformAccountId: "page-x",
       name: "Meta X",
       accessTokenEnc: "enc",
       iv: "iv",
       tag: "tag",
       keyVersion: 1,
     });
+
+    const xRows = await listConnections(x.id);
+    const yRows = await listConnections(y.id);
+    expect(xRows.length).toBe(1);
+    expect(yRows.length).toBe(0); // hard server-side scoping
   });
 
-  it("cross-client read returns no rows for the other client", async () => {
-    const rows = await listConnections(clientY);
-    expect(rows.length).toBe(0);
-  });
-
-  it("FK rejects a social account without a valid client", async () => {
+  it("rejects a social account without a valid client (FK)", async () => {
     await expect(
       db.insert(socialAccount).values({
         clientId: "00000000-0000-0000-0000-000000000000",
         platform: "meta",
-        platformAccountId: "ig-bad",
-        name: "Bad",
+        platformAccountId: "page-orphan",
+        name: "Orphan",
         accessTokenEnc: "enc",
         iv: "iv",
         tag: "tag",
@@ -64,9 +47,3 @@ describe("client isolation (CLNT-02)", () => {
     ).rejects.toThrow();
   });
 });
-
-function cookieHeaderFor(cookie: string): Headers {
-  const h = new Headers();
-  if (cookie) h.set("cookie", cookie);
-  return h;
-}

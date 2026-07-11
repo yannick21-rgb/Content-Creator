@@ -1,6 +1,11 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { user, account, session, client, socialAccount, oauthState } from "@/lib/db/schema";
+import { POST as POST_SIGNUP } from "@/app/api/auth/signup/route";
+import { POST as POST_LOGIN } from "@/app/api/auth/login/route";
+
+const SIGNUP_URL = "http://localhost/api/auth/signup";
+const LOGIN_URL = "http://localhost/api/auth/login";
 
 // Build a NextRequest with a JSON body and optional cookies.
 export function jsonRequest(

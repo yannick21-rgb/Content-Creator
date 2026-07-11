@@ -1,61 +1,55 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { NextRequest } from "next/server";
-import { GET, POST } from "@/app/api/clients/route";
-import { clearDb, signUpAndGetCookie, cookieHeader } from "@/test/helpers";
+import { POST, GET } from "./route";
+import { createAuthedUser, cleanupTestData, jsonRequest, SESSION_COOKIE } from "@/test-utils/request";
 
-const EMAIL = `clients-${Date.now()}@example.com`;
-const PASSWORD = "password123";
+const BASE = "http://localhost/api/clients";
 
 describe("POST /api/clients (CLNT-01)", () => {
-  let cookie: string;
   beforeEach(async () => {
-    await clearDb();
-    cookie = await signUpAndGetCookie(EMAIL, PASSWORD);
+    await cleanupTestData();
   });
 
-  it("creates a client owned by the user and sets the active cookie", async () => {
+  it("creates a client owned by the authenticated user", async () => {
+    const { cookie, userId } = await createAuthedUser("clients-owner@example.com");
     const res = await POST(
-      new NextRequest("http://localhost/api/clients", {
-        method: "POST",
-        headers: { "content-type": "application/json", ...cookieHeader(cookie) },
-        body: JSON.stringify({ name: "Acme" }),
-      }),
+      jsonRequest(BASE, { name: "Acme" }, { [SESSION_COOKIE]: cookie }),
     );
     expect(res.status).toBe(201);
-    const row = await res.json();
-    expect(row.name).toBe("Acme");
-    expect(row.id).toBeDefined();
+    const body = await res.json();
+    expect(body.name).toBe("Acme");
+    expect(body.userId).toBe(userId);
   });
 
   it("rejects an unauthenticated request with 401", async () => {
-    const res = await POST(
-      new NextRequest("http://localhost/api/clients", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: "Acme" }),
-      }),
-    );
+    const res = await POST(jsonRequest(BASE, { name: "Acme" }));
     expect(res.status).toBe(401);
   });
+});
 
-  it("GET returns only the user's clients with connection counts", async () => {
-    await POST(
-      new NextRequest("http://localhost/api/clients", {
-        method: "POST",
-        headers: { "content-type": "application/json", ...cookieHeader(cookie) },
-        body: JSON.stringify({ name: "Acme" }),
-      }),
-    );
+describe("GET /api/clients (CLNT-01)", () => {
+  beforeEach(async () => {
+    await cleanupTestData();
+  });
+
+  it("returns only the authenticated user's clients", async () => {
+    const { cookie } = await createAuthedUser("list-owner@example.com");
+    await POST(jsonRequest(BASE, { name: "Acme" }, { [SESSION_COOKIE]: cookie }));
+
     const res = await GET(
-      new NextRequest("http://localhost/api/clients", {
-        method: "GET",
-        headers: cookieHeader(cookie),
-      }),
+      jsonRequest(BASE, {}, { [SESSION_COOKIE]: cookie }),
     );
-    const rows = await res.json();
-    expect(Array.isArray(rows)).toBe(true);
-    expect(rows.length).toBe(1);
-    expect(rows[0]).toHaveProperty("connected_count");
-    expect(rows[0]).toHaveProperty("reconnect_required_count");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body)).toBe(true);
+    expect(body.length).toBe(1);
+    expect(body[0].name).toBe("Acme");
+    // Connection summary is present and starts at zero.
+    expect(body[0].connected_count).toBe(0);
+    expect(body[0].reconnect_required_count).toBe(0);
+  });
+
+  it("rejects an unauthenticated GET with 401", async () => {
+    const res = await GET(jsonRequest(BASE, {}));
+    expect(res.status).toBe(401);
   });
 });
