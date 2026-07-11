@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
 
-export async function middleware(req: NextRequest) {
+// Lightweight presence check only — no DB hit in middleware.
+const PROTECTED = [/^\/dashboard/, /^\/onboarding/, /^\/clients/];
+
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const protectedRoutes = ["/dashboard", "/clients"];
-  const isProtected = protectedRoutes.some(
-    (r) => pathname === r || pathname.startsWith(`${r}/`),
-  );
+  const isProtected = PROTECTED.some((re) => re.test(pathname));
   if (!isProtected) return NextResponse.next();
 
-  // Lightweight presence check (no DB/crypto in the edge runtime).
-  // Better Auth's session cookie is namespaced "better-auth.*".
-  const hasSession = [...req.cookies.getAll()].some((c) =>
-    c.name.startsWith("better-auth"),
-  );
-  if (!hasSession) {
+  const session = getSessionCookie(req);
+  if (!session) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
@@ -22,5 +19,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/clients/:path*"],
+  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/clients/:path*"],
 };
