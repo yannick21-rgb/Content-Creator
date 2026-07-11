@@ -8,8 +8,8 @@ import {
   check,
   sql,
 } from "drizzle-orm/pg-core";
-import { createId } from "@paralleldrive/cuid2";
 import { relations } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 // ---------------------------------------------------------------------------
 // Better Auth tables (Drizzle adapter, provider: "pg")
@@ -17,7 +17,7 @@ import { relations } from "drizzle-orm";
 // ---------------------------------------------------------------------------
 
 export const user = pgTable("user", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
+  id: text("id").primaryKey().$defaultFn(() => randomUUID()),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull().default(false),
@@ -27,7 +27,7 @@ export const user = pgTable("user", {
 });
 
 export const session = pgTable("session", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
+  id: text("id").primaryKey().$defaultFn(() => randomUUID()),
   expiresAt: timestamp("expires_at").notNull(),
   token: text("token").notNull().unique(),
   ipAddress: text("ip_address"),
@@ -40,7 +40,7 @@ export const session = pgTable("session", {
 });
 
 export const account = pgTable("account", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
+  id: text("id").primaryKey().$defaultFn(() => randomUUID()),
   accountId: text("account_id").notNull(),
   providerId: text("provider_id").notNull(),
   userId: text("user_id")
@@ -58,7 +58,7 @@ export const account = pgTable("account", {
 });
 
 export const verification = pgTable("verification", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
+  id: text("id").primaryKey().$defaultFn(() => randomUUID()),
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
   expiresAt: timestamp("expires_at").notNull(),

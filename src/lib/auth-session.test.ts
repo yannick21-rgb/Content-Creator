@@ -2,12 +2,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { POST as signUp } from "@/app/api/auth/signup/route";
 import { POST as signIn } from "@/app/api/auth/login/route";
 import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import {
   cleanupTestData,
   jsonRequest,
-  getCookie,
-  SESSION_COOKIE,
+  getSessionCookie,
+  cookieRecord,
   cookieRequest,
 } from "@/test-utils/request";
 
@@ -33,14 +32,12 @@ describe("session survives refresh (AUTH-02)", () => {
         password: "supersecret123",
       }),
     );
-    const cookie = getCookie(loginRes, SESSION_COOKIE);
+    const cookie = getSessionCookie(loginRes);
     expect(cookie).toBeTruthy();
 
     // A second request reusing the session cookie — simulates a browser refresh.
     const session = await auth.api.getSession({
-      headers: cookieRequest("http://localhost/dashboard", {
-        [SESSION_COOKIE]: cookie!,
-      }).headers,
+      headers: cookieRequest("http://localhost/dashboard", cookieRecord(cookie!)).headers,
     });
     expect(session).not.toBeNull();
     expect(session!.user.email).toBe("refresh@example.com");
@@ -49,7 +46,7 @@ describe("session survives refresh (AUTH-02)", () => {
   it("rejects a request with no/invalid cookie", async () => {
     const session = await auth.api.getSession({
       headers: cookieRequest("http://localhost/dashboard", {
-        [SESSION_COOKIE]: "not-a-real-token",
+        "better-auth.session_token": "not-a-real-token",
       }).headers,
     });
     expect(session).toBeNull();
