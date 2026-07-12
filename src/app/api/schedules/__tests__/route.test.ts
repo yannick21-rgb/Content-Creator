@@ -20,7 +20,7 @@ describe("GET /api/schedules (SCHD-03)", () => {
 
   it("returns empty list when no scheduled posts", async () => {
     const res = await fetch("http://localhost:3000/api/schedules", {
-      headers: { Cookie: cookie },
+      headers: { Cookie: `${cookie.name}=${cookie.value}` },
     });
     expect(res.status).toBe(200);
     const data = await res.json();

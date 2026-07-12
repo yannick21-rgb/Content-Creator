@@ -83,7 +83,7 @@ export async function POST(
       if (!result.allowed) {
         return NextResponse.json(
           {
-            error: `Rate limit exceeded for ${platform}. Try again later.",
+            error: `Rate limit exceeded for ${platform}. Try again later.`,
             resetTime: result.resetTime,
           },
           { status: 429 },

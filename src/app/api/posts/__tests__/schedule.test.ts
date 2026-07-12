@@ -16,7 +16,7 @@ describe("POST /api/posts/[id]/schedule (SCHD-01)", () => {
 
     const res = await fetch("http://localhost:3000/api/posts", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: cookie },
+      headers: { "Content-Type": "application/json", Cookie: `${cookie.name}=${cookie.value}` },
       body: JSON.stringify({ text: "Scheduled post content" }),
     });
     const post = await res.json();
@@ -39,7 +39,7 @@ describe("POST /api/posts/[id]/schedule (SCHD-01)", () => {
   it("rejects past datetime", async () => {
     const res = await fetch(`http://localhost:3000/api/posts/${postId}/schedule`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: cookie },
+      headers: { "Content-Type": "application/json", Cookie: `${cookie.name}=${cookie.value}` },
       body: JSON.stringify({ scheduledAt: "2020-01-01 00:00", timezone: "America/New_York", socialAccountIds: [] }),
     });
     expect(res.status).toBe(400);
@@ -48,7 +48,7 @@ describe("POST /api/posts/[id]/schedule (SCHD-01)", () => {
   it("rejects invalid timezone", async () => {
     const res = await fetch(`http://localhost:3000/api/posts/${postId}/schedule`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Cookie: cookie },
+      headers: { "Content-Type": "application/json", Cookie: `${cookie.name}=${cookie.value}` },
       body: JSON.stringify({ scheduledAt: "2026-08-01 09:00", timezone: "Invalid/Zone", socialAccountIds: [] }),
     });
     expect(res.status).toBe(400);

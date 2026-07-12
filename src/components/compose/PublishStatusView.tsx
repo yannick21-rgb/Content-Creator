@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PublishStatusView } from "@/components/compose/PublishStatusView";
 import { AiGeneratorModal } from "@/components/compose/AiGeneratorModal";
 
-export function PublishStatusViewWithRetry({ postId }: { postId: string }) {
+export function PublishStatusView({ postId }: { postId: string }) {
   const [retryCount, setRetryCount] = useState(0);
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiText, setAiText] = useState("");
@@ -47,8 +46,6 @@ export function PublishStatusViewWithRetry({ postId }: { postId: string }) {
 
   return (
     <div>
-      <PublishStatusView postId={postId} />
-
       <div className="mt-4 p-4 bg-gray-50 rounded-lg">
         <h3 className="text-lg font-semibold mb-3">Quick Actions</h3>
         <div className="flex gap-3">

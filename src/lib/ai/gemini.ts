@@ -23,7 +23,7 @@ export async function setGeminiApiKey(apiKeyParam: string) {
   await initializeGemini(apiKeyParam);
 }
 
-class MockAiProvider implements AiProvider {
+export class MockAiProvider implements AiProvider {
   platform: string = "mock";
 
   async generate(post: any, options: any): Promise<any> {
@@ -121,7 +121,7 @@ class MockAiProvider implements AiProvider {
   }
 }
 
-class GeminiAiProvider implements AiProvider {
+export class GeminiAiProvider implements AiProvider {
   platform: string = "gemini";
 
   async generate(post: any, options: any): Promise<any> {
@@ -251,9 +251,6 @@ Améliorez et reformulez ce texte (ton: ${tone}, plateforme: ${platform}, max ${
     }
   }
 }
-
-export const MockAiProvider = MockAiProvider;
-export const GeminiAiProvider = GeminiAiProvider;
 
 export function getAiProvider(model?: AiModel): AiProvider {
   const aiMode = process.env.AI_MODE ?? "mock";

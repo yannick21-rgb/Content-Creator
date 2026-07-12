@@ -16,29 +16,30 @@
     "worker": "node --import tsx worker.ts"
   },
   "dependencies": {
-    "next": "^15.5.19",
-    "react": "^19",
-    "react-dom": "^19",
-    "better-auth": "1.6.23",
-    "@better-auth/drizzle-adapter": "1.6.23",
-    "drizzle-orm": "^0.45.2",
-    "postgres": "^3.4",
-    "zod": "^4",
-    "swr": "^2",
     "@aws-sdk/client-s3": "^3.1069",
     "@aws-sdk/s3-request-presigner": "^3.1069",
+    "@better-auth/drizzle-adapter": "1.6.23",
     "@google/genai": "latest",
+    "better-auth": "1.6.23",
     "bullmq": "^5.79",
-    "ioredis": "^5"
+    "drizzle-orm": "^0.45.2",
+    "ioredis": "^5",
+    "next": "^15.5.19",
+    "postgres": "^3.4",
+    "react": "^19",
+    "react-dom": "^19",
+    "swr": "^2",
+    "zod": "^4"
   },
   "devDependencies": {
-    "typescript": "^5.7",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31",
     "tailwindcss": "^4",
-    "@tailwindcss/postcss": "^4",
+    "typescript": "^5.7",
     "vitest": "^2"
   }
 }
