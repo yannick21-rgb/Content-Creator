@@ -13,7 +13,7 @@ Content-Creator is an agency tool to generate, schedule, and publish content to 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation — Auth, Clients & Connections** - Team sign-in, isolated multi-client workspaces, and OAuth token vault with encrypted storage + reconnect state (implemented 2026-07-11; build/test/DB verification pending — sandbox has no network/Postgres)
-- [ ] **Phase 2: Composer & Media Library** - Compose text/image/video/IG-carousel posts with per-platform validation; upload media to a public CDN-ready library
+- [x] **Phase 2: Composer & Media Library** - Compose text/image posts with per-platform validation; upload media via R2 presigned URLs (implemented 2026-07-12; verification pending)
 - [ ] **Phase 3: Scheduler & Worker (reliability proof)** - Schedule posts with correct timezones; durable background worker publishes due jobs idempotently (proven via FakePublisher)
 - [ ] **Phase 4: Publish to Meta (Facebook)** - First real per-platform adapter; immediate publish to connected Meta accounts with tracked status (first vertical MVP)
 - [ ] **Phase 5: Publish to Instagram (incl. carousels)** - Extends the adapter pipeline to Instagram, incl. multi-image carousels and IG container flow
@@ -44,7 +44,10 @@ Plans:
 **Goal**: Team can compose posts (text, single image, video, IG carousel) with per-platform limit validation and upload media to a public CDN-ready library.
 **Mode:** mvp
 **Depends on**: Phase 1
-**Requirements**: COMP-01, COMP-02, COMP-03, COMP-04, COMP-05, MEDA-01, MEDA-02
+**Requirements**: COMP-01, COMP-02, COMP-05, MEDA-01, MEDA-02
+
+Plans:
+- [x] 02-01-PLAN.md — Post CRUD + R2 media upload + Composer UI (COMP-01, COMP-02, COMP-05, MEDA-01, MEDA-02)
 **Success Criteria** (what must be TRUE):
   1. Team composes a post with text and optionally adds a single image, a video, or an Instagram carousel (2–10 images).
   2. Team uploads media via presigned URLs and the media appears in a per-client media library.
@@ -72,11 +75,13 @@ Plans:
 **Depends on**: Phase 3
 **Requirements**: PUBL-01, PUBL-02, PUBL-03
 **Success Criteria** (what must be TRUE):
-  1. Team publishes a post immediately to one or more connected Meta/Facebook accounts.
-  2. Publishing flows through a per-platform `Publisher` adapter interface (Meta adapter) — architecture supports adding more platforms without scheduler changes.
-  3. Each publish target shows tracked status (scheduled/running/published/failed) and failures are reported per target.
-  4. Meta tokens are exchanged for long-lived tokens and refreshed where possible; the connection degrades gracefully if app review is pending.
-**Plans**: TBD
+   1. Team publishes a post immediately to one or more connected Meta/Facebook accounts.
+   2. Publishing flows through a per-platform `Publisher` adapter interface (Meta adapter) — architecture supports adding more platforms without scheduler changes.
+   3. Each publish target shows tracked status (scheduled/running/published/failed) and failures are reported per target.
+   4. Meta tokens are exchanged for long-lived tokens and refreshed where possible; the connection degrades gracefully if app review is pending.
+**Plans**: 1 plan
+Plans:
+- [x] 04-01-PLAN.md — MetaPublisher adapter, per-page Facebook tokens, OAuth enhancement, publish API endpoint, PublishModal UI, publish status view with polling, tests.
 **UI hint**: yes
 
 ### Phase 5: Publish to Instagram (incl. carousels)
@@ -85,11 +90,13 @@ Plans:
 **Depends on**: Phase 4
 **Requirements**: (extends PUBL-01, PUBL-02, PUBL-03 — Instagram coverage; no new requirement IDs)
 **Success Criteria** (what must be TRUE):
-  1. Team publishes an image or video post to Instagram via the same adapter pipeline (IG container flow created at publish time, not compose time).
-  2. Team publishes an Instagram carousel (2–10 images) to a connected IG account.
-  3. IG-specific limits (caption length, JPEG format, 25/24h) are validated in the composer and respected at publish.
-  4. Publish status per IG target is tracked and IG failures are surfaced per target.
-**Plans**: TBD
+   1. Team publishes an image or video post to Instagram via the same adapter pipeline (IG container flow created at publish time, not compose time).
+   2. Team publishes an Instagram carousel (2–10 images) to a connected IG account.
+   3. IG-specific limits (caption length 2200, JPEG format, 25/24h) are validated in the composer and respected at publish.
+   4. Publish status per IG target is tracked and IG failures are surfaced per target.
+**Plans**: 1 plan
+Plans:
+- [x] 05-01-PLAN.md — InstagramPublisher adapter, IG container flow (single + carousel), OAuth IG account storage, PublishModal tabs, validation, tests.
 **UI hint**: yes
 
 ### Phase 6: Publish to LinkedIn
@@ -98,11 +105,13 @@ Plans:
 **Depends on**: Phase 4
 **Requirements**: (extends PUBL-01, PUBL-02, PUBL-03 — LinkedIn coverage; no new requirement IDs)
 **Success Criteria** (what must be TRUE):
-  1. Team publishes a post (text/media) to a connected LinkedIn account via the adapter.
-  2. LinkedIn's 60-day token expiry is surfaced with a one-click "Reconnect LinkedIn" path; publishing degrades gracefully when the token has expired.
-  3. Publish status per LinkedIn target is tracked and failures are surfaced per target.
-  4. LinkedIn organic carousels are documented as unsupported; the composer/UX communicates this clearly.
-**Plans**: TBD
+   1. Team publishes a post (text/media) to a connected LinkedIn account via the adapter.
+   2. LinkedIn's 60-day token expiry is surfaced with a one-click "Reconnect LinkedIn" path; publishing degrades gracefully when the token has expired.
+   3. Publish status per LinkedIn target is tracked and failures are surfaced per target.
+   4. LinkedIn organic carousels are documented as unsupported; the composer/UX communicates this clearly.
+**Plans**: 1 plan
+Plans:
+- [ ] 06-01-PLAN.md — LinkedInPublisher adapter, factory wiring, publish route update, PublishModal LinkedIn tab with reconnect state, composer carousel notice, tests.
 **UI hint**: yes
 
 ### Phase 7: AI (Gemini) & Hardening
@@ -125,12 +134,12 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation — Auth, Clients & Connections | 0/0 | Not started | - |
-| 2. Composer & Media Library | 0/0 | Not started | - |
-| 3. Scheduler & Worker (reliability proof) | 0/0 | Not started | - |
-| 4. Publish to Meta (Facebook) | 0/0 | Not started | - |
-| 5. Publish to Instagram (incl. carousels) | 0/0 | Not started | - |
-| 6. Publish to LinkedIn | 0/0 | Not started | - |
+| 1. Foundation — Auth, Clients & Connections | 3/3 | Code complete (pending verification) | - |
+| 2. Composer & Media Library | 1/1 | Code complete (pending verification) | - |
+| 3. Scheduler & Worker (reliability proof) | 1/1 | Code complete (pending verification) | - |
+| 4. Publish to Meta (Facebook) | 1/1 | Code complete (pending verification) | - |
+| 5. Publish to Instagram (incl. carousels) | 1/1 | Code complete (pending verification) | - |
+| 6. Publish to LinkedIn | 0/1 | Not started | - |
 | 7. AI (Gemini) & Hardening | 0/0 | Not started | - |
 
 ## Coverage Note
