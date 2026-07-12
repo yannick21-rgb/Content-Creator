@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 04 context gathered
-last_updated: "2026-07-12T12:29:30.948Z"
-last_activity: "2026-07-12 — Phase 3 executed (1 plan: 03-01)"
+stopped_at: Phase 06 context gathered - ready for research/planning
+last_updated: "2026-07-12T13:20:00.000Z"
+last_activity: "2026-07-12 — Phase 6 context gathered (discuss-phase)"
 progress:
   total_phases: 7
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
-  percent: 43
+  completed_phases: 5
+  total_plans: 7
+  completed_plans: 7
+  percent: 71
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 
 ## Current Position
 
-Phase: 3 of 7 (Scheduler & Worker)
+Phase: 5 of 7 (Publish to Instagram)
 Plan: 1 of 1 in current phase (code complete; verification pending)
-Status: Implemented — pending verification (no network/Postgres/Redis in sandbox)
-Last activity: 2026-07-12 — Phase 3 executed (1 plan: 03-01)
+Status: Code complete — pending verification (no network/Postgres/Redis in sandbox)
+Last activity: 2026-07-12 — Phase 5 executed (1 plan: 05-01)
 
 Progress: [██████████] 100% (code) — verification gates open
 
@@ -36,7 +36,7 @@ Progress: [██████████] 100% (code) — verification gates op
 
 **Velocity:**
 
-- Total plans completed (code): 5
+- Total plans completed (code): 6
 - Average duration: n/a (sandbox: no build/run executed)
 - Total execution time: n/a
 
@@ -47,10 +47,12 @@ Progress: [██████████] 100% (code) — verification gates op
 | 1 Foundation | 3 | 3 | n/a |
 | 2 Composer | 1 | 1 | n/a |
 | 3 Scheduler | 1 | 1 | n/a |
+| 4 Meta | 1 | 1 | n/a |
+| 5 Instagram | 1 | 1 | n/a |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01, 01-02, 01-03, 02-01, 03-01
+- Last 7 plans: 01-01, 01-02, 01-03, 02-01, 03-01, 04-01, 05-01
 - Trend: all plans implemented sequentially; Phase 3 added 17 new files, 6 modified files.
 
 *Updated after each plan completion*
@@ -86,21 +88,23 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-12T12:29:30.884Z
-Stopped at: Phase 04 context gathered
-Resume file: .planning/phases/04-publish-to-meta-facebook/04-CONTEXT.md
+Last session: 2026-07-12T13:10:00.000Z
+Stopped at: Phase 05 code complete
+Resume file: .planning/phases/05-publish-to-instagram/05-01-PLAN.md
 
 ## Pending Verification (Human Gates)
 
-1. `npm install` in a networked environment (bullmq, ioredis will install).
-2. Provision Postgres; set `DATABASE_URL` (+ `DATABASE_URL_TEST`); `npx drizzle-kit push` (all phases schema, including Phase 3).
-3. Provision Redis; set `REDIS_URL` (or `docker run -d -p 6379:6379 redis:7`).
+1. `npm install` in a networked environment.
+2. Provision Postgres; `npx drizzle-kit push` (all phases schema, including Phases 4 + 5).
+3. Provision Redis; set `REDIS_URL`.
 4. Set R2 env vars (`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`).
-5. `npm run build` (verify Next + TS compile) and `npm run test` (vitest: all tests including Phase 3).
-6. Manual: create client → compose post → schedule post via API → verify DB + BullMQ job → start worker → verify status transition.
+5. Set Meta env vars (`META_CLIENT_ID`, `META_CLIENT_SECRET`) for real publishing.
+6. `npm run build` + `npm run test` (vitest: all phases).
+7. Manual: create client → connect Meta → compose post → Publish Now → select FB/IG → verify status transitions.
+8. Manual: verify IG carousel (2-10 images) → confirm via IG container API flow.
 
 ## Session Continuity (2026-07-12)
 
-Last session: 2026-07-12T10:00:00.000Z
-Stopped at: Phase 3 code complete; verification gates pending (no network/Postgres/Redis in sandbox)
-Resume file: .planning/phases/03-scheduler-worker/03-01-PLAN.md
+Last session: 2026-07-12T13:20:00.000Z
+Stopped at: Phase 6 context gathered - ready for research/planning
+Resume file: .planning/phases/06-publish-to-linkedin/06-CONTEXT.md
