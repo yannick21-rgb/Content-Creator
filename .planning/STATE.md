@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 06 planned - ready for execution
-last_updated: "2026-07-12T19:25:00.000Z"
-last_activity: "2026-07-12 — Phase 6 planned (1 plan: 06-01)"
+stopped_at: Phase 07 context gathered - ready for planning
+last_updated: "2026-07-12T21:15:00.000Z"
+last_activity: "2026-07-12 — Phase 7 context gathered (AI & Hardening)"
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 8
-  completed_plans: 7
-  percent: 71
+  completed_plans: 8
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-11)
 
 ## Current Position
 
-Phase: 6 of 7 (Publish to LinkedIn)
-Plan: 1 of 1 planned (06-01-PLAN.md)
-Status: Planned — ready for execution
-Last activity: 2026-07-12 — Phase 6 planned (1 plan: 06-01)
+Phase: 7 of 7 (AI (Gemini) & Hardening)
+Plan: 0 of 0 planned
+Status: Context gathered — ready for planning
+Last activity: 2026-07-12 — Phase 7 context gathered
 
 Progress: [██████████] 100% (code) — verification gates open
 
@@ -49,11 +49,12 @@ Progress: [██████████] 100% (code) — verification gates op
 | 3 Scheduler | 1 | 1 | n/a |
 | 4 Meta | 1 | 1 | n/a |
 | 5 Instagram | 1 | 1 | n/a |
+| 6 LinkedIn | 1 | 1 | n/a |
 
 **Recent Trend:**
 
-- Last 7 plans: 01-01, 01-02, 01-03, 02-01, 03-01, 04-01, 05-01
-- Trend: all plans implemented sequentially; Phase 3 added 17 new files, 6 modified files.
+- Last 8 plans: 01-01, 01-02, 01-03, 02-01, 03-01, 04-01, 05-01, 06-01
+- Trend: all plans implemented sequentially; Phase 6 added LinkedInPublisher adapter, factory wiring, PublishModal LinkedIn tab, composer updates, and 16 passing tests.
 
 *Updated after each plan completion*
 
@@ -102,9 +103,14 @@ Resume file: .planning/phases/05-publish-to-instagram/05-01-PLAN.md
 6. `npm run build` + `npm run test` (vitest: all phases).
 7. Manual: create client → connect Meta → compose post → Publish Now → select FB/IG → verify status transitions.
 8. Manual: verify IG carousel (2-10 images) → confirm via IG container API flow.
+9. Set LinkedIn env vars (`LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`) for real publishing.
+10. Manual: connect LinkedIn account → compose post → Publish Now → select LinkedIn → verify status transitions.
+11. Manual: verify LinkedIn text-only publish and text+image publish.
+12. Manual: verify LinkedIn reconnect badge shows when token is within 7 days of expiry.
+13. Manual: verify composer LinkedIn carousel unsupported notice (2+ media items).
 
 ## Session Continuity (2026-07-12)
 
-Last session: 2026-07-12T19:25:00.000Z
-Stopped at: Phase 6 planned - ready for execution
-Resume file: .planning/phases/06-publish-to-linkedin/06-01-PLAN.md
+Last session: 2026-07-12T21:15:00.000Z
+Stopped at: Phase 7 context gathered - ready for planning
+Resume file: .planning/phases/07-ai-gemini-hardening/07-CONTEXT.md
