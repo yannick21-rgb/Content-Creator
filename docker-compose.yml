@@ -1,0 +1,64 @@
+# Local development infrastructure for Content-Creator.
+# Brings up PostgreSQL + Redis (and optionally MinIO for S3-compatible media).
+#
+#   docker compose up -d
+#
+# Credentials/ports are aligned with .env.example so the app connects with zero
+# extra config:
+#   DATABASE_URL=postgres://postgres:postgres@localhost:5432/content_creator
+#   REDIS_URL=redis://localhost:6379
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: cc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: content_creator
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d content_creator"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: cc-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Optional: S3-compatible storage for local media upload testing.
+  # Uncomment and set R2_* env to point at MinIO when testing media uploads.
+  # minio:
+  #   image: minio/minio:latest
+  #   container_name: cc-minio
+  #   command: ["server", "/data", "--console-address", ":9001"]
+  #   environment:
+  #     MINIO_ROOT_USER: minioadmin
+  #     MINIO_ROOT_PASSWORD: minioadmin
+  #   ports:
+  #     - "9000:9000"
+  #     - "9001:9001"
+  #   volumes:
+  #     - miniodata:/data
+
+volumes:
+  pgdata:
+  redisdata:
+  # miniodata:
