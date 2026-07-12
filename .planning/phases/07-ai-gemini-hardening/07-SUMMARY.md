@@ -69,18 +69,24 @@ targets, and a health/heartbeat endpoint).
 
 ## Deviations
 
-- **Brand-voice API route is MISSING.** `src/app/api/clients/[id]/brand-voice/`
-  directory exists but contains **no `route.ts`**. The `brand_voice` table and
-  the editor page exist, but there is no `GET`/`PUT` endpoint to read or write
-  the profile — the feature is **not functional end-to-end**. UAT test 3
-  ("Brand Voice CRUD") was marked pass during conversational UAT but was never
-  executed against a real route; it is a **false positive** and must be
-  re-verified once the route is implemented.
+- **Brand-voice API route was MISSING (now RESOLVED).** At SUMMARY authoring
+  time, `src/app/api/clients/[id]/brand-voice/` contained no `route.ts` — the
+  `brand_voice` table and editor page existed but nothing read/wrote the
+  profile. A follow-up commit added `GET`/`PUT`/`POST
+  /api/clients/[id]/brand-voice` (client-scoped, Zod-validated, upsert
+  semantics) matching the editor page's contract. UAT test 3 ("Brand Voice
+  CRUD") had been a **false positive** (conversational, never executed); it can
+  now be re-verified for real.
 - **No dedicated AI unit tests.** AI providers were only verified
   conversationally via UAT; no `gemini.test.ts` / `provider.test.ts` exists.
 - **UAT was conversational, not executed.** Per the sandbox having no
   network/Postgres/Redis, the 10 UAT tests were validated by description, not by
   running the app. This is why the missing brand-voice route was not caught.
+- **Build-breaking artifact found and fixed during this pass.** A duplicate
+  `src/app/api/posts/\[id\]/schedule/` folder (literal backslash in the name)
+  shadowed the real `src/app/api/posts/[id]/schedule/route.ts`, breaking Next's
+  `.next/types` generation and making the schedule endpoint unreachable. The
+  file was `git mv`'d to the correct path and the corrupted folder removed.
 
 ## Verification
 
@@ -103,14 +109,14 @@ targets, and a health/heartbeat endpoint).
 - [x] `POST /api/posts/[id]/publish` enforces per-account rate limit → 429
 - [x] `PublishStatusView` shows Retry for failed targets
 - [x] `GET /api/health` returns status/redis/version/uptime, 200
-- [ ] **Brand-voice API route exists and is CRUD-able** — BLOCKED (route missing)
-- [ ] **Brand Voice UAT test 3 actually passes against a running route** — BLOCKED
+- [x] **Brand-voice API route exists and is CRUD-able** — RESOLVED (GET/PUT/POST added)
+- [ ] **Brand Voice UAT test 3 actually passes against a running route** — pending live DB
 
 ## Open Items
 
-- **Implement `GET`/`PUT /api/clients/[id]/brand-voice`** reading/writing the
-  `brand_voice` table, client-scoped, Zod-validated. Required to make the
-  feature real and to re-run UAT test 3 honestly.
+- ~~Implement `GET`/`PUT /api/clients/[id]/brand-voice`~~ — DONE (follow-up
+  commit); feature now functional end-to-end. Re-run UAT test 3 against a live
+  DB to confirm.
 - Add AI provider unit tests (`gemini.test.ts`) covering generate/improve for
   both providers.
 - Full E2E verification requires a live Postgres + Redis + real Gemini key and
