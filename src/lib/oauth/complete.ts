@@ -1,9 +1,10 @@
-import { db } from "./db";
-import { oauthState, socialAccount } from "./db/schema";
+import { db } from "../db";
+import { oauthState, socialAccount } from "../db/schema";
 import { eq, and } from "drizzle-orm";
-import { getProvider } from "./oauth";
-import { encrypt } from "./crypto";
-import type { Platform } from "./oauth/provider";
+import { getProvider } from "./index";
+import { MetaOAuthProvider } from "./meta";
+import { encrypt } from "../crypto";
+import type { Platform } from "./provider";
 
 export interface CompleteParams {
   platform: Platform;
@@ -64,6 +65,55 @@ export async function completeOAuthConnection(params: CompleteParams) {
       keyVersion: 1,
     })
     .returning();
+
+  if (platform === "meta" && provider instanceof MetaOAuthProvider) {
+    try {
+      const { pages } = await provider.fetchIdentityWithPages(token.accessToken);
+      for (const page of pages) {
+        const pageTokenEnc = encrypt(page.pageToken);
+        await db
+          .insert(socialAccount)
+          .values({
+            clientId,
+            platform,
+            platformAccountId: page.id,
+            name: page.name,
+            accessTokenEnc: pageTokenEnc.ciphertext,
+            iv: pageTokenEnc.iv,
+            tag: pageTokenEnc.tag,
+            expiresAt: token.expiresAt ?? null,
+            keyVersion: 1,
+          })
+          .onConflictDoNothing({
+            target: [socialAccount.platformAccountId, socialAccount.platform, socialAccount.clientId],
+          });
+      }
+
+      // Create Instagram Business Account rows separately
+      const igIdentity = await provider.fetchIdentity(token.accessToken);
+      if (igIdentity.platformAccountId !== (pages[0]?.id ?? "")) {
+        const igTokenEnc = encrypt(token.accessToken);
+        await db
+          .insert(socialAccount)
+          .values({
+            clientId,
+            platform: "instagram",
+            platformAccountId: igIdentity.platformAccountId,
+            name: igIdentity.name,
+            accessTokenEnc: igTokenEnc.ciphertext,
+            iv: igTokenEnc.iv,
+            tag: igTokenEnc.tag,
+            expiresAt: token.expiresAt ?? null,
+            keyVersion: 1,
+          })
+          .onConflictDoNothing({
+            target: [socialAccount.platformAccountId, socialAccount.platform, socialAccount.clientId],
+          });
+      }
+    } catch (e) {
+      console.error("Failed to fetch Meta pages/IG during OAuth:", e);
+    }
+  }
 
   return {
     id: row.id,

@@ -31,7 +31,8 @@ export async function completeOAuthCallback(
       return NextResponse.json({ error: "Invalid OAuth state" }, { status: 400 });
     }
 
-    await completeOAuthConnection(platform, {
+    await completeOAuthConnection({
+      platform,
       code,
       state,
       codeVerifier: stored.codeVerifier,

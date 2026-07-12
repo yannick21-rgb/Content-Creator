@@ -1,6 +1,18 @@
-// Vitest setup: wire the test database before any test imports the app's db client.
-// Vitest already loads .env/.env.local (Vite env loading), so DATABASE_URL_TEST and
-// DATABASE_URL are present. We point the app's DATABASE_URL at the test database.
+// Polyfill globalThis.crypto for Node 18 (Better Auth depends on it; it's
+// natively available since Node 19). This polyfill is safe on Node 20+ too.
+import { webcrypto } from "crypto";
+if (typeof globalThis.crypto === "undefined") {
+  globalThis.crypto = webcrypto as Crypto;
+}
+
+// Explicitly load .env and .env.local so env vars are present before any module
+// import (Vite's env loading may not set process.env in all Vitest modes).
+import dotenv from "dotenv";
+
+dotenv.config({ path: ".env" });
+dotenv.config({ path: ".env.local" });
+
+// Wire the test database — DATABASE_URL_TEST overrides DATABASE_URL when set.
 const testUrl = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL;
 if (testUrl) {
   process.env.DATABASE_URL = testUrl;

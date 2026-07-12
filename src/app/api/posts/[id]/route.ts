@@ -7,6 +7,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const userId = await requireUser(req.headers);
     const activeClientId = await getActiveClientId(req.headers);
+    if (!activeClientId) {
+      return NextResponse.json({ error: "No active client" }, { status: 400 });
+    }
     const { id } = await params;
     const post = await getPost({ id, clientId: activeClientId });
 
@@ -27,6 +30,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const userId = await requireUser(req.headers);
     const activeClientId = await getActiveClientId(req.headers);
+    if (!activeClientId) {
+      return NextResponse.json({ error: "No active client" }, { status: 400 });
+    }
     const { id } = await params;
     const { text, title, mediaIds } = await req.json();
 

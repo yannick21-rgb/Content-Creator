@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ConnectionCard from "@/components/connections/ConnectionCard";
+import { ConnectionCard } from "@/components/connections/ConnectionCard";
 
 interface Connection {
   id: string;
   platform: "meta" | "linkedin";
+  platformAccountId: string;
   name: string | null;
   status: "connected" | "reconnect_required";
+  expiresAt: string | null;
+  keyVersion: number;
 }
 
 export default function ConnectionsView({ clientId }: { clientId: string }) {
@@ -55,10 +58,9 @@ export default function ConnectionsView({ clientId }: { clientId: string }) {
         {connections.map((c) => (
           <ConnectionCard
             key={c.id}
+            clientId={clientId}
             platform={c.platform}
-            name={c.name}
-            status={c.status}
-            reconnectUrl={`/api/clients/${clientId}/connections/${c.id}/reconnect`}
+            connection={c}
           />
         ))}
       </div>

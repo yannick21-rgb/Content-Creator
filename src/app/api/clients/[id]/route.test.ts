@@ -1,16 +1,20 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { GET, PATCH, DELETE } from "./route";
 import { POST as POST_CLIENT } from "@/app/api/clients/route";
-import { createAuthedUser, cleanupTestData, jsonRequest, cookieRecord } from "@/test-utils/request";
+import { createAuthedUser, cleanupTestData, jsonRequest, cookieRecord, type Cookie } from "@/test-utils/request";
 import { db } from "@/lib/db";
 import { socialAccount } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
 const BASE = "http://localhost/api/clients";
 
-async function createClient(cookie: string, name: string) {
+async function createClient(cookie: Cookie, name: string) {
   const res = await POST_CLIENT(jsonRequest(BASE, { name }, cookieRecord(cookie)));
   return (await res.json()) as { id: string };
+}
+
+function extractId(url: string): string {
+  return url.split("/").pop()!;
 }
 
 describe("GET/PATCH/DELETE /api/clients/[id] (CLNT-03)", () => {
@@ -25,12 +29,14 @@ describe("GET/PATCH/DELETE /api/clients/[id] (CLNT-03)", () => {
 
     const res = await PATCH(
       jsonRequest(`${BASE}/${a.id}`, { name: "Client A renamed" }, cookieRecord(cookie)),
+      { params: Promise.resolve({ id: a.id }) },
     );
     expect(res.status).toBe(200);
     expect((await res.json()).name).toBe("Client A renamed");
 
     const bRes = await GET(
       jsonRequest(`${BASE}/${b.id}`, {}, cookieRecord(cookie)),
+      { params: Promise.resolve({ id: b.id }) },
     );
     expect((await bRes.json()).name).toBe("Client B");
   });
@@ -54,6 +60,7 @@ describe("GET/PATCH/DELETE /api/clients/[id] (CLNT-03)", () => {
 
     const del = await DELETE(
       jsonRequest(`${BASE}/${a.id}`, {}, cookieRecord(cookie)),
+      { params: Promise.resolve({ id: a.id }) },
     );
     expect(del.status).toBe(204);
 

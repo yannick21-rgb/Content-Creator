@@ -125,7 +125,7 @@ Key integration points:
 ## Specific Ideas
 
 - Utiliser `POST /rest/images?action=initializeUpload` pour l'upload image LinkedIn (registerUpload API). Obtenir un `urn:li:image:<id>` à référencer dans le post.
-- LinkedIn API utilise `Authorization: Bearer <token>` (pas query param `access_token=`) et l'en-tête `LinkedIn-Version: 202405`.
+- LinkedIn API utilise `Authorization: Bearer <token>` (pas query param `access_token=`) et l'en-tête `LinkedIn-Version: 202606`.
 - Les posts LinkedIn utilisent le format `com.linkedin.ugc.ShareContent` avec `shareMediaCategory: IMAGE` pour les images.
 - L'ID du média est stocké comme `platformRef` sur `publish_targets` pour le suivi.
 </specifics>

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "./db";
-import { oauthState } from "./db/schema";
+import { db } from "../db";
+import { oauthState } from "../db/schema";
 import { eq, and } from "drizzle-orm";
-import { completeOAuthConnection } from "./oauth/complete";
-import type { Platform } from "./oauth/provider";
+import { completeOAuthConnection } from "./complete";
+import type { Platform } from "./provider";
 
 // Shared "complete OAuth" logic for both platforms.
 export async function completeOAuth(

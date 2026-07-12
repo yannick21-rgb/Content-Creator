@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "./db";
-import { oauthState } from "./db/schema";
-import { generatePkce } from "./oauth/pkce";
-import { getProvider } from "./oauth";
-import type { Platform } from "./oauth/provider";
+import { db } from "../db";
+import { oauthState } from "../db/schema";
+import { generatePkce } from "./pkce";
+import { getProvider } from "./index";
+import type { Platform } from "./provider";
 
 // Shared "begin OAuth" logic for both platforms (D-06: clientId bound in state).
 export async function beginOAuth(

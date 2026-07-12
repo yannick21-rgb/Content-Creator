@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
 // Lightweight presence check only — no DB hit in middleware.
-const PROTECTED = [/^\/dashboard/, /^\/onboarding/, /^\/clients/];
+const PROTECTED = [/^\/dashboard/, /^\/onboarding/, /^\/clients/, /^\/schedule/];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -19,5 +19,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/clients/:path*"],
+  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/clients/:path*", "/schedule/:path*"],
 };

@@ -7,7 +7,7 @@ type ConnectionView = {
   platform: string;
   platformAccountId: string;
   name: string | null;
-  expiresAt: Date | null;
+  expiresAt: Date | string | null;
   status: ConnectionStatus;
 } | null;
 

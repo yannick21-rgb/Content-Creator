@@ -11,7 +11,9 @@
     "db:generate": "drizzle-kit generate",
     "test": "vitest run",
     "test:unit": "vitest run src/lib",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "worker:dev": "tsx watch worker.ts",
+    "worker": "node --import tsx worker.ts"
   },
   "dependencies": {
     "next": "^15.5.19",
@@ -21,7 +23,13 @@
     "@better-auth/drizzle-adapter": "1.6.23",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4",
-    "zod": "^4"
+    "zod": "^4",
+    "swr": "^2",
+    "@aws-sdk/client-s3": "^3.1069",
+    "@aws-sdk/s3-request-presigner": "^3.1069",
+    "@google/genai": "latest",
+    "bullmq": "^5.79",
+    "ioredis": "^5"
   },
   "devDependencies": {
     "typescript": "^5.7",

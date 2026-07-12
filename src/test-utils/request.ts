@@ -1,11 +1,8 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { user, account, session, client, media, posts, socialAccount, oauthState } from "@/lib/db/schema";
-import { POST as POST_SIGNUP } from "@/app/api/auth/signup/route";
-import { POST as POST_LOGIN } from "@/app/api/auth/login/route";
-
-const SIGNUP_URL = "http://localhost/api/auth/signup";
-const LOGIN_URL = "http://localhost/api/auth/login";
+import { eq } from "drizzle-orm";
+import { auth } from "@/lib/auth";
 
 // Build a NextRequest with a JSON body and optional cookies.
 export function jsonRequest(
@@ -91,11 +88,30 @@ export async function cleanupTestData() {
 }
 
 // Create a user + return a valid session cookie and the user id (for tests).
+// Uses Better Auth API directly (not route handlers) to avoid response-forwarding issues.
 export async function createAuthedUser(email: string, password = "supersecret123") {
-  await POST_SIGNUP(jsonRequest(SIGNUP_URL, { email, password, name: email }));
-  const loginRes = await POST_LOGIN(
-    jsonRequest(LOGIN_URL, { email, password }),
-  );
+  const h = new Headers({ "content-type": "application/json" });
+
+  const signupRes = await auth.api.signUpEmail({
+    body: { email, password, name: email },
+    headers: h,
+    asResponse: true,
+  });
+  if (signupRes.status !== 200 && signupRes.status !== 201) {
+    const body = signupRes.body ? await signupRes.json() : null;
+    throw new Error(`Signup failed (${signupRes.status}): ${JSON.stringify(body)}`);
+  }
+
+  const loginRes = await auth.api.signInEmail({
+    body: { email, password },
+    headers: h,
+    asResponse: true,
+  });
+  if (loginRes.status !== 200) {
+    const body = loginRes.body ? await loginRes.json() : null;
+    throw new Error(`Login failed (${loginRes.status}): ${JSON.stringify(body)}`);
+  }
+
   const cookie = getSessionCookie(loginRes)!;
   const [u] = await db.select().from(user).where(eq(user.email, email));
   return { cookie, userId: u.id };

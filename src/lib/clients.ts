@@ -50,10 +50,10 @@ export async function getActiveClientId(reqHeaders?: Headers): Promise<string | 
 // Write the active-client cookie (httpOnly, server-readable — not client-only).
 // When a NextResponse is provided (route handler), the cookie is set on it so
 // the helper is testable without Next's request-scoped cookies().
-export function setActiveClientCookie(
+export async function setActiveClientCookie(
   clientId: string,
   res?: NextResponse,
-): void {
+): Promise<void> {
   const opts = {
     httpOnly: true,
     sameSite: "lax" as const,
@@ -64,7 +64,7 @@ export function setActiveClientCookie(
     res.cookies.set(ACTIVE_CLIENT_COOKIE, clientId, opts);
     return;
   }
-  const store = cookies();
+  const store = await cookies();
   store.set(ACTIVE_CLIENT_COOKIE, clientId, opts);
 }
 

@@ -111,7 +111,7 @@ Plans:
    4. LinkedIn organic carousels are documented as unsupported; the composer/UX communicates this clearly.
 **Plans**: 1 plan
 Plans:
-- [ ] 06-01-PLAN.md — LinkedInPublisher adapter, factory wiring, publish route update, PublishModal LinkedIn tab with reconnect state, composer carousel notice, tests.
+- [x] 06-01-PLAN.md — LinkedInPublisher adapter, factory wiring, publish route update, PublishModal LinkedIn tab with reconnect state, composer carousel notice, tests.
 **UI hint**: yes
 
 ### Phase 7: AI (Gemini) & Hardening
@@ -139,7 +139,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Scheduler & Worker (reliability proof) | 1/1 | Code complete (pending verification) | - |
 | 4. Publish to Meta (Facebook) | 1/1 | Code complete (pending verification) | - |
 | 5. Publish to Instagram (incl. carousels) | 1/1 | Code complete (pending verification) | - |
-| 6. Publish to LinkedIn | 0/1 | Not started | - |
+| 6. Publish to LinkedIn | 1/1 | Code complete (pending verification) | - |
 | 7. AI (Gemini) & Hardening | 0/0 | Not started | - |
 
 ## Coverage Note

@@ -1,6 +1,6 @@
 // src/lib/r2.ts
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { S3RequestPresigner } from "@aws-sdk/s3-request-presigner";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "node:crypto";
 
 const client = new S3Client({
@@ -11,8 +11,6 @@ const client = new S3Client({
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
 });
-
-const presigner = new S3RequestPresigner({ ...client });
 
 async function generateUploadUrl({
   clientId,
@@ -39,7 +37,7 @@ async function generateUploadUrl({
     },
   });
 
-  const presignedUrl = await presigner.presign(command, { expiresIn: 3600 });
+  const presignedUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
   return {
     presignedUrl,
     key,

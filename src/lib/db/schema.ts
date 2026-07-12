@@ -7,9 +7,8 @@ import {
   integer,
   json,
   check,
-  sql,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 // ---------------------------------------------------------------------------
@@ -102,10 +101,10 @@ export const socialAccount = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
-    check(
-      "social_account_platform_check",
-      sql`${table.platform} IN ('meta', 'linkedin')`,
-    ),
+check(
+  "social_account_platform_check",
+  sql`${table.platform} IN ('meta', 'linkedin', 'instagram')`,
+),
   ],
 );
 
@@ -134,6 +133,9 @@ export const posts = pgTable("posts", {
   title: text("title"),
   text: text("text").notNull(),
   multiImage: boolean("multi_image").default(false),
+  scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+  timezone: text("timezone"),
+  status: text("status").default("draft").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -150,6 +152,34 @@ export const media = pgTable("media", {
   metadata: json("metadata"),
   postId: uuid("post_id").references(() => posts.id, { onDelete: "set null" }),
 });
+
+// ---------------------------------------------------------------------------
+// Phase 3 — Scheduler & Worker (publish targets)
+// ---------------------------------------------------------------------------
+
+export const publishTargets = pgTable(
+  "publish_targets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    socialAccountId: uuid("social_account_id")
+      .notNull()
+      .references(() => socialAccount.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("scheduled"),
+    errorMessage: text("error_message"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      "publish_target_status_check",
+      sql`${table.status} IN ('scheduled', 'running', 'published', 'failed')`,
+    ),
+  ],
+);
 
 // ---------------------------------------------------------------------------
 // Relations
@@ -192,6 +222,18 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
     references: [client.id],
   }),
   media: many(media),
+  publishTargets: many(publishTargets),
+}));
+
+export const publishTargetsRelations = relations(publishTargets, ({ one }) => ({
+  post: one(posts, {
+    fields: [publishTargets.postId],
+    references: [posts.id],
+  }),
+  socialAccount: one(socialAccount, {
+    fields: [publishTargets.socialAccountId],
+    references: [socialAccount.id],
+  }),
 }));
 
 export const mediaRelations = relations(media, ({ one }) => ({
@@ -221,3 +263,30 @@ export type Post = typeof posts.$inferSelect;
 export type NewPost = typeof posts.$inferInsert;
 export type Media = typeof media.$inferSelect;
 export type NewMedia = typeof media.$inferInsert;
+export type PublishTarget = typeof publishTargets.$inferSelect;
+export type NewPublishTarget = typeof publishTargets.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Phase 07 — AI (Gemini) & Hardening
+// ---------------------------------------------------------------------------
+
+export const brandVoice = pgTable("brand_voice", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id")
+    .notNull()
+    .references(() => client.id, { onDelete: "cascade" }),
+  tone: text("tone").notNull(),
+  styleGuidelines: text("style_guidelines"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const brandVoiceRelations = relations(brandVoice, ({ one }) => ({
+  client: one(client, {
+    fields: [brandVoice.clientId],
+    references: [client.id],
+  }),
+}));
+
+export type BrandVoice = typeof brandVoice.$inferSelect;
+export type NewBrandVoice = typeof brandVoice.$inferInsert;

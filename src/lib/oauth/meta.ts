@@ -63,7 +63,6 @@ export class MetaOAuthProvider implements OAuthProvider {
       method: "GET",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       // fb_exchange_token for long-lived (60d)
-      // @ts-expect-error URLSearchParams is accepted as body
       body: new URLSearchParams({
         grant_type: "fb_exchange_token",
         client_id: clientId,
@@ -85,22 +84,38 @@ export class MetaOAuthProvider implements OAuthProvider {
   }
 
   async fetchIdentity(accessToken: string): Promise<OAuthIdentity> {
-    // Fetch the linked Instagram Business account / Page id.
-    const res = await fetch(
-      `${META_API}/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${accessToken}`,
+    const result = await this.fetchIdentityWithPages(accessToken);
+    return result.identity;
+  }
+
+  async fetchIdentityWithPages(accessToken: string): Promise<{
+    identity: OAuthIdentity;
+    pages: Array<{ id: string; name: string; pageToken: string }>;
+  }> {
+    const pagesRes = await fetch(
+      `${META_API}/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&limit=100&access_token=${accessToken}`,
     );
-    const json = (await res.json()) as {
+    const pagesJson = await pagesRes.json() as {
       data?: Array<{
-        id: string;
-        name: string;
+        id: string; name: string; access_token: string;
         instagram_business_account?: { id: string; username?: string };
       }>;
+      error?: { message: string };
     };
-    const page = json.data?.[0];
-    if (!page) throw new Error("No Meta page found for token");
+    if (pagesJson.error) throw new Error(`Meta pages fetch failed: ${pagesJson.error.message}`);
+    const pages = (pagesJson.data || []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      pageToken: p.access_token,
+    }));
+    const first = pagesJson.data?.[0];
+    if (!first) throw new Error("No Meta page found for token");
     return {
-      platformAccountId: page.instagram_business_account?.id ?? page.id,
-      name: page.instagram_business_account?.username ?? page.name,
+      identity: {
+        platformAccountId: first.instagram_business_account?.id ?? first.id,
+        name: first.instagram_business_account?.username ?? first.name,
+      },
+      pages,
     };
   }
 }

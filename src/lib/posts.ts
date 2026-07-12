@@ -1,7 +1,7 @@
 // src/lib/posts.ts
 import { db } from "./db";
-import { posts, media } from "./db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { posts, media, publishTargets } from "./db/schema";
+import { eq, and, inArray, gte, desc } from "drizzle-orm";
 
 export async function createPost({
   text,
@@ -81,6 +81,37 @@ export async function listPosts({ clientId }: { clientId: string }) {
     where: eq(posts.clientId, clientId),
     orderBy: (posts, { desc }) => [desc(posts.createdAt)],
     with: {
+      media: true,
+    },
+  });
+}
+
+export async function getScheduledPosts(clientId: string) {
+  return await db.query.posts.findMany({
+    where: and(
+      eq(posts.clientId, clientId),
+      gte(posts.scheduledAt as any, new Date()),
+    ),
+    orderBy: (posts, { asc }) => [asc(posts.scheduledAt as any)],
+    with: {
+      publishTargets: {
+        with: {
+          socialAccount: true,
+        },
+      },
+    },
+  });
+}
+
+export async function getPostWithTargets(id: string, clientId: string) {
+  return await db.query.posts.findFirst({
+    where: and(eq(posts.id, id), eq(posts.clientId, clientId)),
+    with: {
+      publishTargets: {
+        with: {
+          socialAccount: true,
+        },
+      },
       media: true,
     },
   });

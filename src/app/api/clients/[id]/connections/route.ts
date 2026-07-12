@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireUser(req.headers);
+    const userId = await requireUser(_req.headers);
     const { id } = await params;
     await assertClientOwned(id, userId);
     const rows = await listConnections(id);

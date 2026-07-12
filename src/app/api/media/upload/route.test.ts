@@ -11,12 +11,14 @@ import { createClientFor } from "@/test-utils/clients-helper";
 import { ACTIVE_CLIENT_COOKIE } from "@/lib/clients";
 
 vi.mock("@/lib/r2", () => ({
-  generateUploadUrl: vi.fn().mockResolvedValue({
-    presignedUrl: "https://r2.example.com/presigned",
-    key: "media/client-id/uuid.jpeg",
-    clientId: "client-id",
-    contentType: "image/jpeg",
-  }),
+  generateUploadUrl: vi.fn().mockImplementation(({ clientId }: { clientId: string }) =>
+    Promise.resolve({
+      presignedUrl: "https://r2.example.com/presigned",
+      key: `media/${clientId}/uuid.jpeg`,
+      clientId,
+      contentType: "image/jpeg",
+    }),
+  ),
 }));
 
 const BASE = "http://localhost/api/media/upload";
