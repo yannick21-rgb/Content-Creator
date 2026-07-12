@@ -12,13 +12,13 @@ Content-Creator is an agency tool to generate, schedule, and publish content to 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [x] **Phase 1: Foundation — Auth, Clients & Connections** - Team sign-in, isolated multi-client workspaces, and OAuth token vault with encrypted storage + reconnect state (implemented 2026-07-11; build/test/DB verification pending — sandbox has no network/Postgres)
-- [x] **Phase 2: Composer & Media Library** - Compose text/image posts with per-platform validation; upload media via R2 presigned URLs (implemented 2026-07-12; verification pending)
-- [ ] **Phase 3: Scheduler & Worker (reliability proof)** - Schedule posts with correct timezones; durable background worker publishes due jobs idempotently (proven via FakePublisher)
-- [ ] **Phase 4: Publish to Meta (Facebook)** - First real per-platform adapter; immediate publish to connected Meta accounts with tracked status (first vertical MVP)
-- [ ] **Phase 5: Publish to Instagram (incl. carousels)** - Extends the adapter pipeline to Instagram, incl. multi-image carousels and IG container flow
-- [ ] **Phase 6: Publish to LinkedIn** - Extends the adapter pipeline to LinkedIn with first-class 60-day re-auth
-- [ ] **Phase 7: AI (Gemini) & Hardening** - Per-client brand-voice copy generation plus recovery/observability/rate-limit hardening
+- [x] **Phase 1: Foundation — Auth, Clients & Connections** - Team sign-in, isolated multi-client workspaces, and OAuth token vault with encrypted storage + reconnect state (code complete; unit tests passing; live DB/OAuth pending — sandbox has no network/Postgres)
+- [x] **Phase 2: Composer & Media Library** - Compose text/image posts with per-platform validation; upload media via R2 presigned URLs (code complete; unit tests passing)
+- [x] **Phase 3: Scheduler & Worker (reliability proof)** - Schedule posts with correct timezones; durable background worker (BullMQ) publishes due jobs idempotently (code complete; unit tests passing; live Redis/worker pending)
+- [x] **Phase 4: Publish to Meta (Facebook)** - First real per-platform adapter; immediate publish to connected Meta accounts with tracked status (code complete; unit tests passing; real API pending app review)
+- [x] **Phase 5: Publish to Instagram (incl. carousels)** - Extends the adapter pipeline to Instagram, incl. multi-image carousels and IG container flow (code complete; unit tests passing; real API pending)
+- [x] **Phase 6: Publish to LinkedIn** - Extends the adapter pipeline to LinkedIn with first-class 60-day re-auth (code complete + UAT; unit tests passing; real API pending app approval)
+- [x] **Phase 7: AI (Gemini) & Hardening** - Per-client brand-voice copy generation plus recovery/observability/rate-limit hardening (code complete; UAT 10/10 conversational; **brand-voice API route missing — feature incomplete, see 07-SUMMARY.md Deviations**)
 
 ## Phase Details
 
@@ -134,13 +134,13 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation — Auth, Clients & Connections | 3/3 | Code complete (pending verification) | - |
-| 2. Composer & Media Library | 1/1 | Code complete (pending verification) | - |
-| 3. Scheduler & Worker (reliability proof) | 1/1 | Code complete (pending verification) | - |
-| 4. Publish to Meta (Facebook) | 1/1 | Code complete (pending verification) | - |
-| 5. Publish to Instagram (incl. carousels) | 1/1 | Code complete (pending verification) | - |
-| 6. Publish to LinkedIn | 1/1 | Code complete (pending verification) | - |
-| 7. AI (Gemini) & Hardening | 0/0 | Not started | - |
+| 1. Foundation — Auth, Clients & Connections | 3/3 | Code complete (unit-verified; live pending) | 2026-07-11 |
+| 2. Composer & Media Library | 1/1 | Code complete (unit-verified) | 2026-07-12 |
+| 3. Scheduler & Worker (reliability proof) | 1/1 | Code complete (unit-verified; live pending) | 2026-07-12 |
+| 4. Publish to Meta (Facebook) | 1/1 | Code complete (unit-verified; live pending) | 2026-07-12 |
+| 5. Publish to Instagram (incl. carousels) | 1/1 | Code complete (unit-verified; live pending) | 2026-07-12 |
+| 6. Publish to LinkedIn | 1/1 | Code complete + UAT (unit-verified; live pending) | 2026-07-12 |
+| 7. AI (Gemini) & Hardening | 0/0 | Code complete; **brand-voice API route missing** (see 07-SUMMARY.md) | 2026-07-12 |
 
 ## Coverage Note
 
