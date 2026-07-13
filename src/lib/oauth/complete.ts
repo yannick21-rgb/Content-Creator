@@ -3,7 +3,7 @@ import { oauthState, socialAccount } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { getProvider } from "./index";
 import { MetaOAuthProvider } from "./meta";
-import { encrypt } from "../crypto";
+import { encrypt, encryptTokenPair } from "../crypto";
 import type { Platform } from "./provider";
 
 export interface CompleteParams {
@@ -47,8 +47,10 @@ export async function completeOAuthConnection(params: CompleteParams) {
   const token = await provider.exchangeCode({ code, codeVerifier, redirectUri });
   const identity = await provider.fetchIdentity(token.accessToken);
 
-  const accessEnc = encrypt(token.accessToken);
-  const refreshEnc = token.refreshToken ? encrypt(token.refreshToken) : null;
+  const tokenPair = encryptTokenPair(
+    token.accessToken,
+    token.refreshToken,
+  );
 
   const [row] = await db
     .insert(socialAccount)
@@ -57,10 +59,12 @@ export async function completeOAuthConnection(params: CompleteParams) {
       platform,
       platformAccountId: identity.platformAccountId,
       name: identity.name,
-      accessTokenEnc: accessEnc.ciphertext,
-      iv: accessEnc.iv,
-      tag: accessEnc.tag,
-      refreshTokenEnc: refreshEnc ? refreshEnc.ciphertext : null,
+      accessTokenEnc: tokenPair.accessTokenEnc,
+      iv: tokenPair.iv,
+      tag: tokenPair.tag,
+      refreshTokenEnc: tokenPair.refreshTokenEnc,
+      refreshTokenIv: tokenPair.refreshTokenIv,
+      refreshTokenTag: tokenPair.refreshTokenTag,
       expiresAt: token.expiresAt ?? null,
       keyVersion: 1,
     })

@@ -1,4 +1,4 @@
-import type { OAuthProvider, OAuthToken, OAuthIdentity } from "./provider";
+import type { OAuthProvider, OAuthToken, OAuthIdentity, Platform } from "./provider";
 
 const META_API = "https://graph.facebook.com/v22.0";
 
@@ -116,6 +116,61 @@ export class MetaOAuthProvider implements OAuthProvider {
         name: first.instagram_business_account?.username ?? first.name,
       },
       pages,
+    };
+  }
+
+  // Meta long-lived user tokens are refreshed by re-exchanging the *current*
+  // long-lived token (fb_exchange_token) — only works while not expired.
+  // Instagram Business tokens use the dedicated ig_refresh_token grant.
+  // Returns null if the token is expired beyond the refresh window.
+  async refreshToken(p: {
+    accessToken: string;
+    refreshToken?: string;
+    platform?: Platform;
+    platformAccountId?: string;
+  }): Promise<OAuthToken | null> {
+    const clientId = process.env.META_CLIENT_ID!;
+    const clientSecret = process.env.META_CLIENT_SECRET!;
+
+    if (p.platform === "instagram" && p.platformAccountId) {
+      const res = await fetch(
+        `${META_API}/${p.platformAccountId}/refresh_access_token?grant_type=ig_refresh_token&access_token=${p.accessToken}`,
+      );
+      const json = (await res.json()) as {
+        access_token?: string;
+        expires_in?: number;
+        error?: { message: string };
+      };
+      if (!json.access_token) return null;
+      const expiresIn = json.expires_in ?? 60 * 24 * 60 * 60;
+      return {
+        accessToken: json.access_token,
+        expiresAt: new Date(Date.now() + expiresIn * 1000),
+        longLived: true,
+      };
+    }
+
+    const res = await fetch(`${META_API}/oauth/access_token`, {
+      method: "GET",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "fb_exchange_token",
+        client_id: clientId,
+        client_secret: clientSecret,
+        fb_exchange_token: p.accessToken,
+      }),
+    });
+    const json = (await res.json()) as {
+      access_token?: string;
+      expires_in?: number;
+      error?: { message: string };
+    };
+    if (!json.access_token) return null;
+    const expiresIn = json.expires_in ?? 60 * 24 * 60 * 60;
+    return {
+      accessToken: json.access_token,
+      expiresAt: new Date(Date.now() + expiresIn * 1000),
+      longLived: true,
     };
   }
 }

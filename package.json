@@ -29,6 +29,7 @@
     "react": "^19",
     "react-dom": "^19",
     "swr": "^2",
+    "tsx": "^4.23.0",
     "zod": "^4"
   },
   "devDependencies": {

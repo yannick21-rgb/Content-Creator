@@ -37,6 +37,41 @@ export function encrypt(plainText: string): EncryptedPayload {
   };
 }
 
+// Encrypt access + refresh tokens, each with its own IV/tag (required for GCM
+// correctness). Returns all fields needed to persist and later decrypt both.
+export function encryptTokenPair(
+  accessToken: string,
+  refreshToken?: string | null,
+): {
+  accessTokenEnc: string;
+  iv: string;
+  tag: string;
+  refreshTokenEnc: string | null;
+  refreshTokenIv: string | null;
+  refreshTokenTag: string | null;
+} {
+  const access = encrypt(accessToken);
+  if (!refreshToken) {
+    return {
+      accessTokenEnc: access.ciphertext,
+      iv: access.iv,
+      tag: access.tag,
+      refreshTokenEnc: null,
+      refreshTokenIv: null,
+      refreshTokenTag: null,
+    };
+  }
+  const refresh = encrypt(refreshToken);
+  return {
+    accessTokenEnc: access.ciphertext,
+    iv: access.iv,
+    tag: access.tag,
+    refreshTokenEnc: refresh.ciphertext,
+    refreshTokenIv: refresh.iv,
+    refreshTokenTag: refresh.tag,
+  };
+}
+
 export function decrypt({ iv, tag, ciphertext }: EncryptedPayload): string {
   const decipher = createDecipheriv(ALGO, getKey(), Buffer.from(iv, "base64"));
   decipher.setAuthTag(Buffer.from(tag, "base64"));

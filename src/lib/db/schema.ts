@@ -91,10 +91,14 @@ export const socialAccount = pgTable(
     platformAccountId: text("platform_account_id").notNull(),
     name: text("name"),
     // AES-256-GCM ciphertext + auth tag + IV. Plaintext is never stored.
+    // Access and refresh tokens are encrypted independently (separate IV/tag
+    // each) — reusing one IV across two GCM messages breaks authentication.
     accessTokenEnc: text("access_token_enc").notNull(),
     refreshTokenEnc: text("refresh_token_enc"),
     iv: text("iv").notNull(),
     tag: text("tag").notNull(),
+    refreshTokenIv: text("refresh_token_iv"),
+    refreshTokenTag: text("refresh_token_tag"),
     expiresAt: timestamp("expires_at"),
     keyVersion: integer("key_version").notNull().default(1),
     createdAt: timestamp("created_at").notNull().defaultNow(),

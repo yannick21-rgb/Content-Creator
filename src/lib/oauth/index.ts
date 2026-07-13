@@ -8,7 +8,11 @@ import { LinkedInOAuthProvider } from "./linkedin";
 export function getProvider(platform: Platform): OAuthProvider {
   const mode = process.env.OAUTH_PROVIDER_MODE ?? "mock";
   if (mode === "real") {
-    if (platform === "meta") return new MetaOAuthProvider();
+    // Instagram Business accounts are Meta tokens — use the Meta provider for
+    // token refresh (ig_refresh_token grant).
+    if (platform === "meta" || platform === "instagram") {
+      return new MetaOAuthProvider();
+    }
     return new LinkedInOAuthProvider();
   }
   return new MockOAuthProvider(platform);

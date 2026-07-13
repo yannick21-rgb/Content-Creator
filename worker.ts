@@ -3,13 +3,31 @@ import { db } from "@/lib/db";
 import { redis } from "@/lib/redis";
 import { eq } from "drizzle-orm";
 import { publishTargets, socialAccount as socialAccountTable, posts as postsTable } from "@/lib/db/schema";
-import { decrypt } from "@/lib/crypto";
+import { getValidAccessToken, refreshSocialAccount, refreshExpiringAccounts } from "@/lib/oauth/refresh";
 import { getPublisher } from "@/lib/publish";
 import type { PublishPlatform } from "@/lib/publish/provider";
 
 console.log("[Worker] Starting BullMQ publish worker...");
 
 const dlq = new Queue("social-publish:dlq", { connection: redis });
+
+// Recurring sweep: proactively refresh tokens nearing expiry so publishes don't
+// fail and "reconnect required" stays rare (CONN-04).
+const refreshSweep = new Queue("token-refresh-sweep", { connection: redis });
+
+async function publishOnce(post: any, target: any, accessToken: string, platform: string) {
+  const publisher = getPublisher(platform as PublishPlatform);
+  return publisher.publish(post, target, {
+    accessToken,
+    platform: platform as PublishPlatform,
+  });
+}
+
+function isAuthError(error?: string): boolean {
+  return /expired|invalid|unauthorized|401|invalid_token|access token/i.test(
+    error ?? "",
+  );
+}
 
 const worker = new Worker<{
   publishTargetId: string;
@@ -54,14 +72,21 @@ const worker = new Worker<{
       throw new UnrecoverableError(`Post ${postId} or account not found`);
     }
 
-    const accessToken = decrypt({
-      iv: account.iv,
-      tag: account.tag,
-      ciphertext: account.accessTokenEnc,
-    });
+    // Use a fresh/valid token — transparently refreshed if within the expiry window.
+    const token = await getValidAccessToken(account.id);
+    let accessToken = token.accessToken;
 
-    const publisher = getPublisher(platform as PublishPlatform);
-    const result = await publisher.publish(post, target, { accessToken, platform: platform as PublishPlatform });
+    let result = await publishOnce(post, target, accessToken, platform);
+
+    // On an auth error, try a hard refresh + single retry before failing.
+    if (!result.success && isAuthError(result.error) && token.refreshed === false) {
+      const refreshed = await refreshSocialAccount(account.id);
+      if (refreshed) {
+        const fresh = await getValidAccessToken(account.id);
+        job.log("Token refreshed after auth error — retrying publish");
+        result = await publishOnce(post, target, fresh.accessToken, platform);
+      }
+    }
 
     if (result.success) {
       await db
@@ -105,9 +130,38 @@ worker.on("error", (err: Error) => {
   console.error("[Worker] Redis/connection error:", err);
 });
 
+// Recurring token-refresh sweep worker (CONN-04).
+const refreshWorker = new Worker(
+  "token-refresh-sweep",
+  async () => {
+    const summary = await refreshExpiringAccounts();
+    console.log(
+      `[refresh-sweep] checked=${summary.checked} refreshed=${summary.refreshed} failed=${summary.failed}`,
+    );
+    return summary;
+  },
+  { connection: redis, concurrency: 1 },
+);
+
+refreshWorker.on("error", (err: Error) => {
+  console.error("[refresh-sweep] Redis/connection error:", err);
+});
+
+// Schedule a daily sweep at 03:00 (server time). Idempotent across restarts.
+refreshSweep
+  .upsertJobScheduler(
+    "token-refresh-daily",
+    { pattern: "0 3 * * *" },
+    { name: "token-refresh-daily", data: {}, opts: { removeOnComplete: true } },
+  )
+  .then(() => console.log("[refresh-sweep] Daily scheduler registered"))
+  .catch((e) => console.error("[refresh-sweep] Failed to register scheduler:", e));
+
 async function shutdown(signal: string) {
   console.log(`\n[Worker] Received ${signal}. Shutting down gracefully...`);
   await worker.close();
+  await refreshWorker.close();
+  await refreshSweep.close();
   await redis.quit();
   process.exit(0);
 }

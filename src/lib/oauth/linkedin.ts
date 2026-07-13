@@ -64,6 +64,40 @@ export class LinkedInOAuthProvider implements OAuthProvider {
     };
   }
 
+  // LinkedIn supports the standard refresh_token grant. Returns null if no
+  // refresh token is available (re-auth required).
+  async refreshToken(p: {
+    accessToken: string;
+    refreshToken?: string;
+  }): Promise<OAuthToken | null> {
+    if (!p.refreshToken) return null;
+    const clientId = process.env.LINKEDIN_CLIENT_ID!;
+    const clientSecret = process.env.LINKEDIN_CLIENT_SECRET!;
+    const res = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: p.refreshToken,
+        client_id: clientId,
+        client_secret: clientSecret,
+      }),
+    });
+    const json = (await res.json()) as {
+      access_token: string;
+      expires_in?: number;
+      refresh_token?: string;
+    };
+    if (!json.access_token) return null;
+    const expiresIn = json.expires_in ?? 60 * 24 * 60 * 60;
+    return {
+      accessToken: json.access_token,
+      refreshToken: json.refresh_token,
+      expiresAt: new Date(Date.now() + expiresIn * 1000),
+      longLived: false,
+    };
+  }
+
   async fetchIdentity(accessToken: string): Promise<OAuthIdentity> {
     const res = await fetch(
       `${LINKEDIN_API}/member?projection=(id,localizedLastName)`,

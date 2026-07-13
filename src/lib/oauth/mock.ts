@@ -39,4 +39,17 @@ export class MockOAuthProvider implements OAuthProvider {
       name: `Mock ${this.platform === "meta" ? "Meta" : "LinkedIn"} Account`,
     };
   }
+
+  async refreshToken(p: {
+    accessToken: string;
+    refreshToken?: string;
+  }): Promise<OAuthToken | null> {
+    const rand = randomBytes(6).toString("hex");
+    return {
+      accessToken: `mock-access-${this.platform}-refreshed-${rand}`,
+      refreshToken: `mock-refresh-${this.platform}-${rand}`,
+      expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+      longLived: true,
+    };
+  }
 }
