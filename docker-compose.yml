@@ -43,22 +43,46 @@ services:
       timeout: 5s
       retries: 10
 
-  # Optional: S3-compatible storage for local media upload testing.
-  # Uncomment and set R2_* env to point at MinIO when testing media uploads.
-  # minio:
-  #   image: minio/minio:latest
-  #   container_name: cc-minio
-  #   command: ["server", "/data", "--console-address", ":9001"]
-  #   environment:
-  #     MINIO_ROOT_USER: minioadmin
-  #     MINIO_ROOT_PASSWORD: minioadmin
-  #   ports:
-  #     - "9000:9000"
-  #     - "9001:9001"
-  #   volumes:
-  #     - miniodata:/data
+  # S3-compatible storage for local media upload testing (no R2 account needed).
+  # Point R2_* env at MinIO in .env.local:
+  #   R2_ENDPOINT=http://localhost:9000
+  #   R2_ACCESS_KEY_ID=minioadmin
+  #   R2_SECRET_ACCESS_KEY=minioadmin
+  #   R2_BUCKET_NAME=content-creator-media
+  minio:
+    image: minio/minio:latest
+    container_name: cc-minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Creates the media bucket on first start (MinIO does not auto-create it).
+  minio-init:
+    image: minio/mc:latest
+    container_name: cc-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/content-creator-media &&
+      mc anonymous set download local/content-creator-media
+      "
+    restart: "no"
 
 volumes:
   pgdata:
   redisdata:
-  # miniodata:
+  miniodata:
