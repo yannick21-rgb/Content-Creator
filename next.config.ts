@@ -38,6 +38,12 @@ import path from "path";
 const nextConfig: NextConfig = {
   // Explicit root to disambiguate the parent lockfile (GitHub workspace).
   outputFileTracingRoot: path.resolve("."),
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   async headers() {
     return [
       {

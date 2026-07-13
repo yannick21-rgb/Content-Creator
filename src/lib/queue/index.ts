@@ -1,23 +1,30 @@
 import { Queue } from "bullmq";
 import { redis } from "@/lib/redis";
 
-export const publishQueue = new Queue("social-publish", {
-  connection: redis,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: "exponential",
-      delay: 2000,
-    },
-    removeOnComplete: {
-      count: 100,
-      age: 24 * 3600,
-    },
-    removeOnFail: {
-      count: 500,
-    },
-  },
-});
+let _publishQueue: Queue | null = null;
+
+function getQueue(): Queue {
+  if (!_publishQueue) {
+    _publishQueue = new Queue("social-publish", {
+      connection: redis,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 2000,
+        },
+        removeOnComplete: {
+          count: 100,
+          age: 24 * 3600,
+        },
+        removeOnFail: {
+          count: 500,
+        },
+      },
+    });
+  }
+  return _publishQueue;
+}
 
 export async function enqueuePublishJob({
   publishTargetId,
@@ -32,7 +39,7 @@ export async function enqueuePublishJob({
   platform: string;
   delayMs: number;
 }) {
-  await publishQueue.add(
+  await getQueue().add(
     "publish",
     { publishTargetId, postId, clientId, platform },
     {

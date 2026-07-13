@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, getActiveClientId } from "@/lib/clients";
+import { requireUser, getActiveClientId, HttpError } from "@/lib/clients";
 import { getPost } from "@/lib/posts";
 import { db } from "@/lib/db";
 import { publishTargets, posts as postsTable, socialAccount } from "@/lib/db/schema";
@@ -80,8 +80,8 @@ export async function POST(
     }
     return NextResponse.json({ postId: id, targets, scheduledAt: scheduledAtUtc.toISOString(), timezone }, { status: 201 });
   } catch (e) {
-    if (e instanceof Error && e.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (e instanceof HttpError && e.status === 401) {
+      return NextResponse.json({ error: e.message }, { status: 401 });
     }
     throw e;
   }

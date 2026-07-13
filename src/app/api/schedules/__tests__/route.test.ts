@@ -1,11 +1,18 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { createAuthedUser, cleanupTestData } from "@/test-utils/request";
+import { NextRequest } from "next/server";
+import { GET } from "../route";
+import {
+  createAuthedUser,
+  cleanupTestData,
+  cookieRecord,
+  type Cookie,
+} from "@/test-utils/request";
 import { createClientFor } from "@/test-utils/clients-helper";
-import type { Cookie } from "@/test-utils/request";
+import { ACTIVE_CLIENT_COOKIE } from "@/lib/clients";
 
 describe("GET /api/schedules (SCHD-03)", () => {
   let cookie: Cookie;
-  let client: { id: string; name: string; userId: string };
+  let client: { id: string };
 
   beforeAll(async () => {
     await cleanupTestData();
@@ -18,17 +25,29 @@ describe("GET /api/schedules (SCHD-03)", () => {
     await cleanupTestData();
   });
 
-  it("returns empty list when no scheduled posts", async () => {
-    const res = await fetch("http://localhost:3000/api/schedules", {
-      headers: { Cookie: `${cookie.name}=${cookie.value}` },
+  function authedRequest() {
+    return new NextRequest("http://localhost/api/schedules", {
+      headers: {
+        Cookie: Object.entries({
+          ...cookieRecord(cookie),
+          [ACTIVE_CLIENT_COOKIE]: client.id,
+        })
+          .map(([k, v]) => `${k}=${v}`)
+          .join("; "),
+      },
     });
+  }
+
+  it("returns empty list when no scheduled posts", async () => {
+    const res = await GET(authedRequest());
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(Array.isArray(data)).toBe(true);
   });
 
   it("requires authentication", async () => {
-    const res = await fetch("http://localhost:3000/api/schedules");
+    const req = new NextRequest("http://localhost/api/schedules");
+    const res = await GET(req);
     expect(res.status).toBe(401);
   });
 });
