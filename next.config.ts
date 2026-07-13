@@ -33,7 +33,11 @@ const securityHeaders = [
   },
 ];
 
+import path from "path";
+
 const nextConfig: NextConfig = {
+  // Explicit root to disambiguate the parent lockfile (GitHub workspace).
+  outputFileTracingRoot: path.resolve("."),
   async headers() {
     return [
       {

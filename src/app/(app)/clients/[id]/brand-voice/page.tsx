@@ -1,8 +1,11 @@
+"use client";
+
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useSWRConfig } from "swr";
 
-export default function BrandVoicePage({ clientId }: { clientId: string }) {
+export default function BrandVoicePage() {
+  const { id: clientId } = useParams<{ id: string }>();
   const router = useRouter();
   const { mutate } = useSWRConfig();
   const [loading, setLoading] = useState(false);
