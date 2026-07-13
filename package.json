@@ -40,6 +40,6 @@
     "drizzle-kit": "^0.31",
     "tailwindcss": "^4",
     "typescript": "^5.7",
-    "vitest": "^2"
+    "vitest": "^4.1.10"
   }
 }
